@@ -1,0 +1,57 @@
+# Static-node-pool alternative for two pre-created tpu7x 2x2x1 node pools.
+# JobSet assigns each replicated Job exclusively to a different node pool.
+apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  name: dcn-google-baseline
+  annotations:
+    alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool
+spec:
+  coordinator:
+    replicatedJob: slice
+    jobIndex: 0
+    podIndex: 0
+  failurePolicy:
+    maxRestarts: 0
+  replicatedJobs:
+  - name: slice
+    replicas: 2
+    template:
+      spec:
+        parallelism: 1
+        completions: 1
+        completionMode: Indexed
+        backoffLimit: 0
+        template:
+          spec:
+            hostNetwork: true
+            dnsPolicy: ClusterFirstWithHostNet
+            restartPolicy: Never
+            nodeSelector:
+              cloud.google.com/gke-tpu-accelerator: tpu7x
+              cloud.google.com/gke-tpu-topology: 2x2x1
+            containers:
+            - name: benchmark
+              image: __IMAGE__
+              imagePullPolicy: Always
+              env:
+              - name: JOBSET_JOB_INDEX
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.labels['jobset.sigs.k8s.io/job-index']
+              - name: DCN_COORDINATOR_HOST
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.labels['jobset.sigs.k8s.io/coordinator']
+              - name: DCN_INTERFACES
+                value: eth1,eth2,lo
+              resources:
+                requests:
+                  google.com/tpu: "4"
+                  ephemeral-storage: 20Gi
+                limits:
+                  google.com/tpu: "4"
+              ports:
+              - {name: jax-coordinator, containerPort: 1234}
+              - {name: megascale, containerPort: 8081}
+              - {name: tpu-runtime, containerPort: 8471}

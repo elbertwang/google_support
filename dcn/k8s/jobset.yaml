@@ -1,0 +1,63 @@
+# GKE dynamic sub-slicing: requires GKE >= 1.36.0-gke.3712000 and JobSet >= 0.12.0.
+# Render __IMAGE__ before applying. Two replicated Jobs request two distinct 2x2x1 slices.
+apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  name: dcn-google-baseline
+  annotations:
+    alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-tpu-slice
+spec:
+  coordinator:
+    replicatedJob: slice
+    jobIndex: 0
+    podIndex: 0
+  failurePolicy:
+    maxRestarts: 0
+  replicatedJobs:
+  - name: slice
+    replicas: 2
+    template:
+      spec:
+        parallelism: 1
+        completions: 1
+        completionMode: Indexed
+        backoffLimit: 0
+        template:
+          metadata:
+            annotations:
+              cloud.google.com/gke-tpu-slice-topology: 2x2x1
+          spec:
+            hostNetwork: true
+            dnsPolicy: ClusterFirstWithHostNet
+            restartPolicy: Never
+            nodeSelector:
+              cloud.google.com/gke-tpu-accelerator: tpu7x
+              cloud.google.com/gke-tpu-topology: 2x2x1
+            containers:
+            - name: benchmark
+              image: __IMAGE__
+              imagePullPolicy: Always
+              env:
+              - name: JOBSET_JOB_INDEX
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.labels['jobset.sigs.k8s.io/job-index']
+              - name: DCN_COORDINATOR_HOST
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.labels['jobset.sigs.k8s.io/coordinator']
+              - name: DCN_INTERFACES
+                value: eth1,eth2,lo
+              resources:
+                requests:
+                  google.com/tpu: "4"
+                  ephemeral-storage: 20Gi
+                limits:
+                  google.com/tpu: "4"
+              ports:
+              - name: jax-coordinator
+                containerPort: 1234
+              - name: megascale
+                containerPort: 8081
+              - name: tpu-runtime
+                containerPort: 8471
