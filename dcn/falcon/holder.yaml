@@ -1,0 +1,81 @@
+# Rendered twice by run.sh: each experiment owns one physical v7x 2x2x1 slice.
+name: __NAME__
+exp_type: PROFILING
+artifact_type: operator-profile
+cluster_name: __CLUSTER__
+profile: true
+tags: [profile, operator-optimization, dcn, multislice, google-baseline]
+model_version: dcn-google-baseline
+role_to_task_spec:
+  worker:
+    image: us-docker.pkg.dev/cloud-tpu-images/jax-ai-image/tpu:jax0.9.0-rev1
+    device_type: v7x
+    device_count: 8
+    device_topo: 2x2x1
+    replica: 1
+    supply_mode: reservation
+    envs:
+      FALCON_GKE_DRANET: "true"
+      FALCON_GKE_DRANET_COUNT: "2"
+      DCN_JAX_VERSION: "0.11.0"
+      DCN_LIBTPU_VERSION: "0.0.44"
+    command: |
+      set -eu
+      ulimit -c 0
+      mkdir -p /tmp/tpu_logs/tmp /tmp/tpu_logs/pip-cache \
+        /tmp/tpu_logs/uv-cache /tmp/tpu_logs/jax-compilation-cache
+      export TMPDIR=/tmp/tpu_logs/tmp
+      export PIP_CACHE_DIR=/tmp/tpu_logs/pip-cache
+      export UV_CACHE_DIR=/tmp/tpu_logs/uv-cache
+      export JAX_COMPILATION_CACHE_DIR=/tmp/tpu_logs/jax-compilation-cache
+
+      /opt/venv/bin/python -m venv --clear /tmp/dcn-venv
+      /tmp/dcn-venv/bin/pip install -q \
+        "jax[tpu]==$DCN_JAX_VERSION" "libtpu==$DCN_LIBTPU_VERSION" \
+        -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
+      /tmp/dcn-venv/bin/python - <<'PY'
+      import importlib.metadata as md
+      import os
+      actual = {name: md.version(name) for name in ("jax", "jaxlib", "libtpu")}
+      print("DCN_VERSION_CHECK", actual, flush=True)
+      assert actual["jax"] == os.environ["DCN_JAX_VERSION"]
+      assert actual["jaxlib"] == os.environ["DCN_JAX_VERSION"]
+      assert actual["libtpu"] == os.environ["DCN_LIBTPU_VERSION"]
+      PY
+
+      root="${ARTIFACT_LOCAL_DIR:?ARTIFACT_LOCAL_DIR must be set}"
+      mkdir -p "$root/profiling"
+      cat > "$root/manifest.json" <<'JSON'
+      {
+        "schema_version": 1,
+        "workflow": "operator-optimization",
+        "operator_family": "dcn_collectives",
+        "operator_name": "google_style_dp2_collectives",
+        "hardware": {
+          "device_type": "v7x",
+          "physical_slices": 2,
+          "physical_slice_topology": "2x2x1",
+          "jax_devices_per_slice": 8
+        },
+        "dimensions": {
+          "dcn": 2,
+          "ici": 8,
+          "dtype": "bf16",
+          "batch": 10,
+          "warmups": 5,
+          "repetitions": 5
+        }
+      }
+      JSON
+      env | sort > "$root/profiling/holder-env.txt"
+      rm -f /tmp/dcn-ready /tmp/dcn-done /tmp/dcn-status
+      touch /tmp/dcn-ready
+      echo "DCN_HOLDER_READY"
+      while [ ! -f /tmp/dcn-done ]; do sleep 5; done
+      if [ -f /tmp/dcn-workload.log ]; then
+        echo DCN_WORKLOAD_LOG_BEGIN
+        cat /tmp/dcn-workload.log
+        echo DCN_WORKLOAD_LOG_END
+      fi
+      status="$(cat /tmp/dcn-status 2>/dev/null || printf 1)"
+      exit "$status"
