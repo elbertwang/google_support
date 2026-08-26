@@ -95,15 +95,14 @@ Confirm all of the following before applying a workload:
 3. Each benchmark container requests `google.com/tpu: 4`, not 8. TPU7x exposes
    two JAX devices per physical chip, but Kubernetes schedules physical chips.
 4. Both high-throughput NICs are visible as `eth1` and `eth2`. The workload
-   passes `--megascale_grpc_interface_prefixes=eth1,eth2,lo` and uses
-   `hostNetwork: true`.
+   passes `--megascale_grpc_interface_prefixes=eth1,eth2,lo`.
 5. TCP ports 1234 (JAX coordinator) and 8081 (MegaScale coordinator) are open
    between the two hosts.
 
 Relevant Google documentation:
 
 - [TPU7x topology and chip counts](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/plan-tpus)
-- [TPU Multislice JobSet and host networking](https://docs.cloud.google.com/kubernetes-engine/docs/how-to/tpu-multislice)
+- [TPU Multislice JobSet](https://docs.cloud.google.com/kubernetes-engine/docs/how-to/tpu-multislice)
 - [TPU7x 2x2x1 admission bug and fixed GKE version](https://docs.cloud.google.com/kubernetes-engine/docs/troubleshooting/known-issues#tpu7x-admission)
 - [Dynamic TPU sub-slicing](https://docs.cloud.google.com/kubernetes-engine/docs/how-to/create-dynamic-slices)
 - [JobSet DNS, coordinator, and topology placement](https://jobset.sigs.k8s.io/docs/concepts/)

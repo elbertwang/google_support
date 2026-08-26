@@ -27,8 +27,6 @@ spec:
             annotations:
               cloud.google.com/gke-tpu-slice-topology: 2x2x1
           spec:
-            hostNetwork: true
-            dnsPolicy: ClusterFirstWithHostNet
             restartPolicy: Never
             nodeSelector:
               cloud.google.com/gke-tpu-accelerator: tpu7x
