@@ -24,8 +24,6 @@ spec:
         backoffLimit: 0
         template:
           spec:
-            hostNetwork: true
-            dnsPolicy: ClusterFirstWithHostNet
             restartPolicy: Never
             nodeSelector:
               cloud.google.com/gke-tpu-accelerator: tpu7x

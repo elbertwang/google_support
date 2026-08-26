@@ -19,8 +19,6 @@ metadata:
   name: dcn-google-baseline-s0
   labels: {app: dcn-google-baseline, dcn-slice: "0"}
 spec:
-  hostNetwork: true
-  dnsPolicy: ClusterFirstWithHostNet
   restartPolicy: Never
   nodeSelector:
     cloud.google.com/gke-nodepool: __SLICE0_NODEPOOL__
@@ -47,8 +45,6 @@ metadata:
   name: dcn-google-baseline-s1
   labels: {app: dcn-google-baseline, dcn-slice: "1"}
 spec:
-  hostNetwork: true
-  dnsPolicy: ClusterFirstWithHostNet
   restartPolicy: Never
   nodeSelector:
     cloud.google.com/gke-nodepool: __SLICE1_NODEPOOL__
