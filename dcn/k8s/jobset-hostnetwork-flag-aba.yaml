@@ -1,0 +1,90 @@
+# A/B/A benchmark for one libtpu flag on two pre-created TPU7x node pools.
+# The Pods use the host network directly and do not request a DRA netdev claim.
+apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  name: dcn-xla-flag-aba
+  annotations:
+    alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool
+spec:
+  coordinator:
+    replicatedJob: slice
+    jobIndex: 0
+    podIndex: 0
+  failurePolicy:
+    maxRestarts: 0
+  network:
+    enableDNSHostnames: true
+    publishNotReadyAddresses: true
+  replicatedJobs:
+  - name: slice
+    replicas: 2
+    template:
+      spec:
+        parallelism: 1
+        completions: 1
+        completionMode: Indexed
+        backoffLimit: 0
+        template:
+          spec:
+            restartPolicy: Never
+            hostNetwork: true
+            dnsPolicy: ClusterFirstWithHostNet
+            nodeSelector:
+              cloud.google.com/gke-tpu-accelerator: tpu7x
+              cloud.google.com/gke-tpu-topology: 2x2x1
+            affinity:
+              nodeAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  nodeSelectorTerms:
+                  - matchExpressions:
+                    - key: cloud.google.com/gke-nodepool
+                      operator: In
+                      values:
+                      - __SLICE0_NODEPOOL__
+                      - __SLICE1_NODEPOOL__
+            containers:
+            - name: benchmark
+              image: __IMAGE__
+              imagePullPolicy: Always
+              securityContext:
+                privileged: true
+              command:
+              - /bin/bash
+              - -lc
+              - /workspace/google_support/dcn/k8s/run_flag_aba.sh
+              env:
+              - name: JOBSET_JOB_INDEX
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.labels['jobset.sigs.k8s.io/job-index']
+              - name: DCN_COORDINATOR_HOST
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.labels['jobset.sigs.k8s.io/coordinator']
+              - name: DCN_INTERFACES
+                value: eth1,eth2,lo
+              - name: DCN_DIMS
+                value: "16384"
+              - name: DCN_VARIANTS
+                value: all_reduce
+              - name: DCN_WARMUPS
+                value: "10000"
+              - name: DCN_REPS
+                value: "20"
+              - name: DCN_BATCH
+                value: "10"
+              - name: DCN_FLAG_EXPERIMENT
+                value: __DCN_FLAG_EXPERIMENT__
+              - name: DCN_FLAG_ARGS
+                value: __DCN_FLAG_ARGS__
+              resources:
+                requests:
+                  google.com/tpu: "4"
+                  ephemeral-storage: 20Gi
+                limits:
+                  google.com/tpu: "4"
+              ports:
+              - {name: jax-coordinator, containerPort: 1234}
+              - {name: megascale, containerPort: 8081}
+              - {name: tpu-runtime, containerPort: 8471}
