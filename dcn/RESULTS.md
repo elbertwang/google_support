@@ -122,3 +122,46 @@ Neither flag is recommended for this microbenchmark based on these results.
 Graphs containing multiple combinable DCN all-reduces or actual sparse-core
 collectives may exercise different compiler paths and should be tested
 separately.
+
+## TPU7x dynamic slicing with Google's TCP rmem setting
+
+Run date: 2026-09-03 (Asia/Shanghai)
+
+The TPU7x-adapted Google `v6e-increase-rmem.yaml` DaemonSet was deployed on the
+production Kueue TAS dynamic-slicing cluster. It reached 32/32 Ready Pods, but
+all init logs showed that the node value was already the target both before and
+after the write:
+
+```text
+4096 41943040 314572800
+```
+
+The benchmark then requested two dynamic `2x2x1` partitions using only the
+`cloud.google.com/gke-tpu-slice-topology: 2x2x1` Pod annotation and the TPU7x
+accelerator selector. It did not set a fixed topology or node-pool selector and
+did not use JobSet exclusive topology. Kueue admitted the two replicas with
+distinct partition IDs. Both Pods used the host network without DRA, and saw
+`eth1` and `eth2` at 200 Gbps each.
+
+The software and workload matched the earlier instrumented runs: JAX/JAXLIB
+0.11.0, libtpu 0.0.44, BF16 dim-16384 all-reduce, an isolated first call,
+10,000 warmups, and 20 paired batch-10 samples. Results use the slower rank for
+each repetition and exclude the trailing barrier.
+
+| Metric | Result |
+|---|---:|
+| First call, rank 0 / rank 1 | 254.198 / 253.005 ms |
+| 10k warmup critical average | 114.737 ms/iteration |
+| Paired collective-only median | 116.565 ms |
+| p05-p95 | 111.641-124.156 ms |
+| CV | 3.58% |
+| Host algorithm bandwidth | **147.384 Gbps** |
+| 400 Gbps efficiency | **36.85%** |
+
+The previous static-node-pool host-network result was 145.812 Gbps (36.45%),
+so this run was 1.078% faster. The previous DRA bracketing mean was 146.065
+Gbps, making this run 0.903% faster. These differences are within earlier
+run-to-run drift. Because the DaemonSet's before and after values were
+identical, this is not an rmem A/B test and provides **no evidence of an
+rmem-induced improvement**. It instead confirms comparable baseline throughput
+on the production dynamic-slicing cluster.

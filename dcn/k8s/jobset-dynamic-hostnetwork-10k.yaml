@@ -1,10 +1,10 @@
-# GKE/Kueue TAS dynamic sub-slicing. Render __IMAGE__ before applying.
-# The topology annotation requests two 2x2x1 partitions; Kueue owns placement.
+# Kueue TAS dynamic 2x2x1 slices, host network, and the XLA-requested 10k warmup.
 apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
-  name: dcn-google-baseline
+  name: dcn-dyn-hn-10k
   labels:
+    app: dcn-dyn-hn-10k
     kueue.x-k8s.io/queue-name: default
 spec:
   coordinator:
@@ -29,6 +29,8 @@ spec:
           metadata:
             annotations:
               cloud.google.com/gke-tpu-slice-topology: 2x2x1
+            labels:
+              app: dcn-dyn-hn-10k
           spec:
             restartPolicy: Never
             hostNetwork: true
@@ -43,6 +45,13 @@ spec:
             - name: benchmark
               image: __IMAGE__
               imagePullPolicy: Always
+              command:
+              - /bin/bash
+              - -lc
+              - |
+                set -euo pipefail
+                echo "DCN_TCP_RMEM $(cat /proc/sys/net/ipv4/tcp_rmem)"
+                exec /workspace/google_support/dcn/k8s/entrypoint.sh
               env:
               - name: JOBSET_JOB_INDEX
                 valueFrom:
@@ -54,6 +63,22 @@ spec:
                     fieldPath: metadata.labels['jobset.sigs.k8s.io/coordinator']
               - name: DCN_INTERFACES
                 value: eth1,eth2,lo
+              - name: DCN_BENCHMARK_PATH
+                value: /workspace/google_support/dcn/timing_benchmark.py
+              - name: DCN_SOURCE_BENCHMARK
+                value: /workspace/google_support/dcn/benchmark.py
+              - name: DCN_EXPERIMENT
+                value: dynamic_hostnetwork_10k
+              - name: DCN_DIMS
+                value: "16384"
+              - name: DCN_VARIANTS
+                value: all_reduce
+              - name: DCN_WARMUPS
+                value: "10000"
+              - name: DCN_REPS
+                value: "20"
+              - name: DCN_BATCH
+                value: "10"
               resources:
                 requests:
                   google.com/tpu: "4"
@@ -61,9 +86,6 @@ spec:
                 limits:
                   google.com/tpu: "4"
               ports:
-              - name: jax-coordinator
-                containerPort: 1234
-              - name: megascale
-                containerPort: 8081
-              - name: tpu-runtime
-                containerPort: 8471
+              - {name: jax-coordinator, containerPort: 1234}
+              - {name: megascale, containerPort: 8081}
+              - {name: tpu-runtime, containerPort: 8471}

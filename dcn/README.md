@@ -158,6 +158,12 @@ included or required.
 
 ### 3A. JobSet on dynamic `2x2x1` sub-slices
 
+This manifest targets a Kueue TAS dynamic-slicing cluster. The Pod annotation
+requests `2x2x1`; do not add a fixed `cloud.google.com/gke-tpu-topology`
+selector or a JobSet `exclusive-topology` annotation. Kueue admission owns the
+partition selection and injects the required topology affinity. The template
+uses `hostNetwork: true`, exposes `eth1` and `eth2`, and makes no DRA claim.
+
 ```bash
 ./dcn/k8s/render.sh jobset-dynamic "$IMAGE" /tmp/dcn-jobset.yaml
 kubectl apply -f /tmp/dcn-jobset.yaml
@@ -165,6 +171,39 @@ kubectl get jobset,pods -w
 kubectl wait --for=condition=Completed jobset/dcn-google-baseline --timeout=2h
 ./dcn/k8s/collect.sh jobset /tmp/dcn-metrics.jsonl
 ```
+
+To reproduce the XLA-requested measurement protocol (isolated first call,
+10,000 compiled warmups, then 20 paired batch-10 samples), render the dedicated
+instrumented template:
+
+```bash
+./dcn/k8s/render.sh jobset-dynamic-hostnetwork-10k "$IMAGE" \
+  /tmp/dcn-dynamic-hostnetwork-10k.yaml
+kubectl apply -f /tmp/dcn-dynamic-hostnetwork-10k.yaml
+kubectl wait --for=condition=Completed \
+  jobset/dcn-dyn-hn-10k --timeout=2h
+kubectl logs -l app=dcn-dyn-hn-10k \
+  --all-containers=true --prefix=true --tail=-1 > /tmp/dcn-dynamic-10k.log
+python3 dcn/timing_results.py /tmp/dcn-dynamic-10k.log
+```
+
+The Kueue local queue is named `default` in the supplied template. Change the
+`kueue.x-k8s.io/queue-name` label if the target cluster uses a different queue.
+
+Google also recommends increasing the TCP receive-buffer maximum. The supplied
+TPU7x adaptation preserves the upstream value and logs the old and new values:
+
+```bash
+kubectl apply -f dcn/k8s/tpu7x-increase-rmem.yaml
+kubectl rollout status daemonset/tcp-increase-rmem -n kube-system
+kubectl logs -n kube-system -l k8s-app=tcp-increase-rmem \
+  -c tcp-increase-rmem --prefix=true
+```
+
+The source is GoogleCloudPlatform/ai-on-gke
+`scripts/network-setup/v6e-increase-rmem.yaml` at commit
+`51bf3dcab6ff658cf62cc32867f96860bf58dfdc`; only the accelerator selector was
+changed from TPU-v6e to TPU7x, with before/after logging added.
 
 ### 3B. JobSet on pre-created static `2x2x1` node pools
 
@@ -176,8 +215,10 @@ kubectl wait --for=condition=Completed jobset/dcn-google-baseline --timeout=2h
 ./dcn/k8s/collect.sh jobset /tmp/dcn-metrics.jsonl
 ```
 
-The JobSet exclusive-topology annotation must assign its two replicated Jobs
-to different TPU slices. Verify the selected nodes before trusting a result:
+For the static template, the JobSet exclusive-topology annotation must assign
+its two replicated Jobs to different node pools. For the dynamic template,
+Kueue TAS must assign distinct slice/partition IDs. Verify the selected nodes
+before trusting a result:
 
 ```bash
 kubectl get pods -l jobset.sigs.k8s.io/jobset-name=dcn-google-baseline \

@@ -3,6 +3,7 @@ set -euo pipefail
 
 usage() {
   echo "Usage: $0 jobset-dynamic IMAGE [OUTPUT]" >&2
+  echo "       $0 jobset-dynamic-hostnetwork-10k IMAGE [OUTPUT]" >&2
   echo "       $0 jobset-static  IMAGE [OUTPUT]" >&2
   echo "       $0 jobset-hostnetwork-flag-aba IMAGE SLICE0_NODEPOOL SLICE1_NODEPOOL FLAG_EXPERIMENT FLAG_ARGS [OUTPUT]" >&2
   echo "       $0 pods IMAGE SLICE0_NODEPOOL SLICE1_NODEPOOL [OUTPUT]" >&2
@@ -17,6 +18,11 @@ case "$mode" in
   jobset-dynamic)
     output="${3:-dcn-jobset.yaml}"
     sed "s|__IMAGE__|$image|g" "$script_dir/jobset.yaml" > "$output"
+    ;;
+  jobset-dynamic-hostnetwork-10k)
+    output="${3:-dcn-dynamic-hostnetwork-10k.yaml}"
+    sed "s|__IMAGE__|$image|g" \
+      "$script_dir/jobset-dynamic-hostnetwork-10k.yaml" > "$output"
     ;;
   jobset-static)
     output="${3:-dcn-jobset.yaml}"
