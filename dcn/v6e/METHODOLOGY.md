@@ -271,6 +271,50 @@ versus `ppermute_uni`, which is `_xla_megascale_transfer_type="ONE_TO_ONE"`.
 The full 1 GiB shard is one `send` / one `recv`; no chunking or pipelining is
 visible.
 
+## Where the time actually goes (xprof)
+
+The upstream package emits no profile — `--profile-dir` is parsed but never used
+and nothing calls `jax.profiler`. `distributed_runner.py` here wraps the run in
+`jax.profiler.trace` under `DCN_PROFILE=1`; `benchmark.py` stays untouched.
+
+Two traces, identical capture settings (dim 32768, warmups 5, reps 3), differing
+only in whether `ppermute_uni` ran first. Device events on rank-0
+`/device:TPU:0`, attributed to the enclosing program by time interval:
+
+| event | clean (145.5 Gbps) | poisoned (62.0 Gbps) | ratio |
+|---|---:|---:|---:|
+| total per dispatch | 258.7 ms | 560.1 ms | 2.17x |
+| **`recv-done`** | **210.9 ms (81.5%)** | **478.3 ms (79.3%)** | **2.27x** |
+| `send-done` | 42.2 ms (16.3%) | 39.0 ms (7.0%) | 0.92x |
+| `barrier-cores` | 3.4 ms (1.3%) | 39.1 ms (7.0%) | 11.5x |
+| `copy.3` | 1.5 ms | 1.5 ms | 1.00x |
+
+Profiling inflates absolutes (145.5 vs 199.4 Gbps unprofiled), so read the
+shares and the ratios, not the milliseconds.
+
+**Clean all-reduce spends 82% of its time in `recv-done`** — waiting for the
+reduced result to come back, not pushing bytes out. Local send handoff is 16%.
+
+**The poisoning lands entirely on the receive side.** `send-done` is unchanged
+(42.2 → 39.0 ms); the whole 2.17x is `recv-done` (+267 ms) plus `barrier-cores`
+(+35.7 ms, 11.5x). Whatever `ppermute_uni` leaves behind affects reception and
+the cross-device aggregation point, not transmission. That is the strongest
+lead we have on the mechanism.
+
+### How much of it is not wire time
+
+Per dispatch a host moves 1 GiB × 4 devices = 4 GiB.
+
+| | ms | implied |
+|---|---:|---|
+| measured, clean, unprofiled | 172.3 | 199.4 Gbps |
+| the same bytes at the measured raw-TCP ceiling | 98.8 | 347.8 Gbps |
+| **difference** | **73.5** | **43% of the total is not wire time** |
+
+xprof says that 43% is not sitting in dispatch or barriers — `recv-done` alone
+accounts for ~140 ms of the 172 ms, so roughly 42 ms of pure non-wire cost is
+inside the receive-and-reduce path itself.
+
 ## Where the clean numbers land
 
 | | Gbps | of matched raw-TCP ceiling |
@@ -318,10 +362,6 @@ to, does not exist in Cloud libtpu 0.0.44 — `strings` shows only `grpc`,
 
 ## Known gaps
 
-- The xprof trace we captured was taken with `ppermute_uni,all_reduce`, i.e. on a
-  poisoned all-reduce (62 Gbps). Its time attribution (79% in `recv-done`)
-  describes the poisoned state and needs re-taking under the clean protocol. The
-  HLO finding is unaffected — that lowering is static.
 - The mechanism behind §2 is not identified.
 - Only DP=2 was measured.
 

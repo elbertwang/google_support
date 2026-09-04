@@ -18,6 +18,9 @@ Against the matching raw-TCP ceiling (347.8 Gbps bidirectional per direction,
 measured with neper on the same NICs) that is **57%**. For comparison
 `ppermute_bidi` reaches 68% and `all_gather` 64%.
 
+xprof on a clean run puts **82% of the time in `recv-done`** — waiting for the
+reduced result, not sending. 43% of the total is not wire time.
+
 ## The same benchmark will give you 33–200 Gbps
 
 Six things move it, in order of size. If you are seeing ~140, start at #1.
@@ -118,6 +121,7 @@ results/ordermatrix/        finding #2, 6 cases
 results/optsweep/           flag sweep, read SUMMARY.txt first
 results/nicbw/              raw TCP ceiling, both directions
 results/netpath/            DRANET vs hostNetwork A/B
+results/xprof/              clean vs poisoned trace logs (traces in the bucket)
 results/metrics-*.jsonl     1-NIC vs 2-NIC
 ```
 
@@ -126,8 +130,7 @@ Larger artifacts (full HLO dumps, xprof traces, ~1 GB) are public, no auth:
 
 ## Known gaps
 
-- The xprof trace we have was captured with `ppermute_uni,all_reduce`, i.e. on a
-  poisoned all-reduce (62 Gbps). Its time attribution needs re-taking under the
-  clean protocol. The HLO finding is unaffected — that lowering is static.
-- The mechanism behind #2 is not identified.
+- The mechanism behind #2 is not identified, though xprof narrows it to the
+  receive path: poisoning leaves `send-done` untouched and multiplies
+  `recv-done` by 2.3x and `barrier-cores` by 11.5x.
 - Only DP=2 was measured.
