@@ -360,6 +360,53 @@ accepted by libtpu on v6e without complaint and does nothing.
 to, does not exist in Cloud libtpu 0.0.44 — `strings` shows only `grpc`,
 `socket`, `rdma`.
 
+### Round 2: targeted at the receive path
+
+Round 1 was chosen before we had a clean profile. Once xprof showed 82% of the
+time sits in `recv-done`, and the participant scan showed **one chip pair alone
+saturates the host**, we swept 14 more flags aimed specifically at the receive /
+DMA / event-manager path: `use_dedicated_eventmanager` and its `h2d`/`d2h`
+variants, `target_dma_size` (4 MiB and 64 MiB),
+`host_command_high_priority_dma_max_size`, `grpc_premap_memory_bytes` +
+`enable_tpu_premapping`, `dcn_transfer_count_threshold`,
+`enable_async_host_commands`, `preactivate_graphs`, and the quantization trio.
+(`grpc_max_message_size` is rejected by libtpu.)
+
+All 14 landed inside the noise band. The three single-shot leaders, re-run 3x
+interleaved:
+
+| | r1 | r2 | r3 | mean | sd |
+|---|---:|---:|---:|---:|---:|
+| baseline | 202.4 | 194.9 | 200.3 | **199.2** | **3.9** |
+| `target_dma_size=64Mi` | 187.1 | 208.4 | 183.0 | 192.8 | 13.6 |
+| `use_dedicated_d2h_eventmanager` | 189.1 | 199.3 | 203.6 | 197.3 | 7.5 |
+| `preactivate_graphs` | 173.8 | 197.3 | 196.0 | 189.0 | 13.2 |
+
+Baseline has the highest mean and the tightest spread. Worth calling out one
+negative: the quantization flags (e5m2, which should halve the bytes on the
+wire) changed nothing, so they do not engage on this path either.
+
+**Running total: 35 MegaScale runtime flags plus 4 XLA-doc configurations. None
+produced an effect distinguishable from run-to-run noise.**
+
+### The same ratio on tpu7x
+
+Two 2x2x1 tpu7x slices (dynamic slicing + Kueue, hostNetwork, same two NICs,
+same clean protocol) on a different cluster reproduce the shape:
+
+| | raw TCP bidi/dir | all_reduce | ratio |
+|---|---:|---:|---:|
+| v6e, 4 devices/slice | 347.8 | 198.0 | 57% |
+| tpu7x, 8 devices/slice | 379.2 | 170.6 | 45% |
+
+tpu7x has the *faster* fabric and the *slower* all-reduce. Upstream's own tpu7x
+table gives 172.084 / 364.726 = 47%, consistent. Payload sweep on tpu7x plateaus
+at 165 ± 8 Gbps (dim 16384 → 49152), and a participant scan at dim 32768 is flat
+in host terms — 8 devices 161.0, 4 devices 166.1, **2 devices (one chip) 168.4**
+— so it is a per-host limit in the transfer path, not aggregation width and not
+per-device. Details in `results/tpu7x/SUMMARY.md`.
+
+
 ## Known gaps
 
 - The mechanism behind §2 is not identified.

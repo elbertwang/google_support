@@ -87,12 +87,20 @@ occupied. We lost a production node pool to this for 21 hours.
 
 ## Configuration levers: there are none
 
-20 MegaScale runtime flags and 4 configurations from the public XLA flags doc,
-all under the clean protocol. Noise floor first (baseline ×6: mean 192.1,
+35 MegaScale runtime flags and 4 configurations from the public XLA flags doc,
+across two rounds — the second aimed specifically at the receive path after
+xprof narrowed it there. All under the clean protocol. Noise floor first (baseline ×6: mean 192.1,
 sd 11.1); every result fell inside the 2σ band, and the single-shot leaders
 collapsed to parity when re-run 3× interleaved (198.3 and 198.9 against a
 baseline of 198.0). The XLA-flag configs produced a **byte-identical** optimized
-HLO. See `results/optsweep/SUMMARY.txt`.
+HLO. Same for round 2: the leaders fell to or below baseline on repetition, and
+baseline had the tightest spread. See `results/optsweep/SUMMARY.txt` and
+`results/optsweep2/SUMMARY.txt`.
+
+The limit is per-host and structural, not tunable: on tpu7x a participant scan
+at dim 32768 gives 161.0 / 166.1 / **168.4** Gbps for 8 / 4 / **2** devices — one
+chip pair alone saturates it. Same ratio across platforms (v6e 57%, tpu7x 45%,
+upstream's own tpu7x table 47%). `results/tpu7x/SUMMARY.md`.
 
 ## What changed in the package
 
@@ -122,6 +130,8 @@ results/optsweep/           flag sweep, read SUMMARY.txt first
 results/nicbw/              raw TCP ceiling, both directions
 results/netpath/            DRANET vs hostNetwork A/B
 results/xprof/              clean vs poisoned trace logs (traces in the bucket)
+results/optsweep2/          round-2 flag sweep, receive-path targeted
+results/tpu7x/              cross-platform check on two 2x2x1 tpu7x slices
 results/metrics-*.jsonl     1-NIC vs 2-NIC
 ```
 
