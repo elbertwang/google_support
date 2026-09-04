@@ -1,0 +1,9 @@
+2-netdev eth1 178.9
+2-netdev eth2 187.3
+2-netdev both 346.2
+2-netdev-tuned eth1 186.7
+2-netdev-tuned eth2 187.2
+2-netdev-tuned both 347.8
+bidi 2-netdev eth1 182.6
+bidi 2-netdev eth2 181.9
+bidi 2-netdev both 354.6

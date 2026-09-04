@@ -1,0 +1,103 @@
+# v6e DCN baseline, DRANET (multi-NIC) variant.
+#
+# NOTE: NO hostNetwork here, on purpose.  DRANET moves the physical NIC into the
+# Pod's network namespace; a hostNetwork Pod has no namespace of its own, so the
+# dranet NRI plugin refuses the sandbox with
+#   "using host network can not claim host devices"
+# (observed on tpu-training-antgroup-v2: falcon pods wedged in Init for 21h).
+# eth1/eth2 arrive via the `2-netdev` ResourceClaimTemplate instead.
+apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  name: dcn-google-baseline
+  namespace: default
+  annotations:
+    alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool
+spec:
+  coordinator:
+    replicatedJob: slice
+    jobIndex: 0
+    podIndex: 0
+  failurePolicy:
+    maxRestarts: 0
+  replicatedJobs:
+  - name: slice
+    replicas: 2
+    template:
+      spec:
+        parallelism: 1
+        completions: 1
+        completionMode: Indexed
+        backoffLimit: 0
+        template:
+          spec:
+            restartPolicy: Never
+            nodeSelector:
+              cloud.google.com/gke-tpu-accelerator: tpu-v6e-slice
+              cloud.google.com/gke-tpu-topology: 2x2
+            affinity:
+              nodeAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  nodeSelectorTerms:
+                  - matchExpressions:
+                    - key: cloud.google.com/gke-nodepool
+                      operator: In
+                      values: [v6e-mn-0, v6e-mn-1]
+            tolerations:
+            - key: google.com/tpu
+              operator: Exists
+              effect: NoSchedule
+            resourceClaims:
+            - name: netdev
+              resourceClaimTemplateName: 2-netdev
+            containers:
+            - name: benchmark
+              image: __IMAGE__
+              imagePullPolicy: Always
+              securityContext:
+                privileged: true
+              env:
+              - name: JOBSET_JOB_INDEX
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.labels['jobset.sigs.k8s.io/job-index']
+              - name: DCN_COORDINATOR_HOST
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.labels['jobset.sigs.k8s.io/coordinator']
+              - name: DCN_INTERFACES
+                value: "eth1,eth2,lo"
+              - name: DCN_DEVICES_PER_SLICE
+                value: "4"
+              - name: DCN_PARTICIPANTS
+                value: "4"
+              - name: DCN_DIMS
+                value: "8192,16384,24576,32768"
+              - name: DCN_VARIANTS
+                value: "ppermute_uni,ppermute_bidi,all_gather,all_reduce"
+              - name: DCN_BATCH
+                value: "10"
+              - name: DCN_WARMUPS
+                value: "5"
+              - name: DCN_REPS
+                value: "5"
+              - name: DCN_RUN_ID
+                value: "v6e-dranet-2nic-20260826"
+              resources:
+                claims:
+                - name: netdev
+                requests:
+                  google.com/tpu: "4"
+                  ephemeral-storage: 20Gi
+                limits:
+                  google.com/tpu: "4"
+              ports:
+              - {name: jax-coordinator, containerPort: 1234}
+              - {name: megascale, containerPort: 8081}
+              - {name: tpu-runtime, containerPort: 8471}
+              volumeMounts:
+              - {mountPath: /dev/shm, name: dshm}
+            volumes:
+            - name: dshm
+              emptyDir:
+                medium: Memory

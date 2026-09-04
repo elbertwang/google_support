@@ -38,12 +38,18 @@ export XLA_FLAGS="${XLA_FLAGS:+$XLA_FLAGS }--xla_dump_to=$rank_out/compiler/hlo 
 export JAX_COMPILATION_CACHE_DIR="${JAX_COMPILATION_CACHE_DIR:-/tmp/tpu_logs/jax-compilation-cache}"
 mkdir -p "$JAX_COMPILATION_CACHE_DIR"
 
+if [ -n "${DCN_PROFILE:-}" ]; then
+  export DCN_PROFILE_DIR="$rank_out/xprof"
+  mkdir -p "$DCN_PROFILE_DIR"
+fi
+
 python_bin="${DCN_PYTHON:-python3}"
 "$python_bin" "$DCN_CODE_ROOT/dcn/distributed_runner.py" \
   --output-dir "$rank_out" \
   --storage-dtype bf16 \
   --expected-num-slices 2 \
-  --participants-per-slice 8 \
+  --participants-per-slice "${DCN_PARTICIPANTS:-8}" \
+  --participant-scan "${DCN_PARTICIPANT_SCAN:-}" \
   --dims "${DCN_DIMS:-8192,16384,24576,32768}" \
   --variants "${DCN_VARIANTS:-ppermute_uni,ppermute_bidi,all_gather,all_reduce}" \
   --batch "${DCN_BATCH:-10}" \

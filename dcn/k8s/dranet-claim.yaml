@@ -1,0 +1,16 @@
+# Two host NICs (eth1/eth2) handed to the Pod by the GKE DRANET driver.
+# Mirrors the `2-netdev` template used by falcon on tpu-training-antgroup-v2.
+apiVersion: resource.k8s.io/v1
+kind: ResourceClaimTemplate
+metadata:
+  name: 2-netdev
+  namespace: default
+spec:
+  spec:
+    devices:
+      requests:
+      - name: req-netdev
+        exactly:
+          deviceClassName: netdev.google.com
+          allocationMode: ExactCount
+          count: 2

@@ -1,0 +1,35 @@
+# Tuned NIC claim, adapted from google/dranet docs/user/gke-tpu-performance.md.
+#
+# Two deviations from the doc, both forced by what this node actually exposes:
+#   - the doc's ethtool privateFlag `enable-max-rx-buffer-size` does not exist on
+#     this driver (gve 1.0.0 exposes only `report-stats`); requesting it fails the
+#     sandbox with `bit name not found`, so it is dropped.
+#   - MTU 8896 and gso/gro_max_size 65536 are already the host defaults here, so
+#     the Big TCP settings below are a no-op restatement, kept for explicitness.
+# The only behavioural delta left vs the plain `2-netdev` claim is
+# disableEbpfPrograms.
+apiVersion: resource.k8s.io/v1
+kind: ResourceClaimTemplate
+metadata:
+  name: 2-netdev-tuned
+  namespace: default
+spec:
+  spec:
+    devices:
+      requests:
+      - name: req-netdev
+        exactly:
+          deviceClassName: netdev.google.com
+          allocationMode: ExactCount
+          count: 2
+      config:
+      - opaque:
+          driver: dra.net
+          parameters:
+            interface:
+              mtu: 8896
+              gsoMaxSize: 65536
+              groMaxSize: 65536
+              gsoIPv4MaxSize: 65536
+              groIPv4MaxSize: 65536
+              disableEbpfPrograms: true

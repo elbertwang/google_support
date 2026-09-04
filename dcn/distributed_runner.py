@@ -53,7 +53,19 @@ def main() -> None:
   assert len(slice_counts) == process_count, preflight
   assert set(slice_counts.values()) == {expected_devices_per_slice}, preflight
 
-  runpy.run_path(os.environ["DCN_BENCHMARK_PATH"], run_name="__main__")
+  # Optional xprof capture. benchmark.py parses --profile-dir but never uses it
+  # (it is a compat shim for the Falcon wrapper), and nothing in the upstream
+  # package ever calls jax.profiler. Wrapping here keeps benchmark.py byte-identical
+  # to the SHA the repo pins.
+  profile_dir = os.environ.get("DCN_PROFILE_DIR", "")
+  if profile_dir:
+    os.makedirs(profile_dir, exist_ok=True)
+    print(f"DCN_XPROF_TRACE_START {profile_dir}", flush=True)
+    with jax.profiler.trace(profile_dir):
+      runpy.run_path(os.environ["DCN_BENCHMARK_PATH"], run_name="__main__")
+    print("DCN_XPROF_TRACE_DONE", flush=True)
+  else:
+    runpy.run_path(os.environ["DCN_BENCHMARK_PATH"], run_name="__main__")
 
 
 if __name__ == "__main__":

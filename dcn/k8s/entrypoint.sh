@@ -8,7 +8,7 @@ case "$DCN_SLICE_ID" in 0|1) ;; *) echo "slice id must be 0 or 1" >&2; exit 2;; 
 
 export DCN_PROCESS_ID="$DCN_SLICE_ID"
 export DCN_PROCESS_COUNT=2
-export DCN_DEVICES_PER_SLICE=8
+export DCN_DEVICES_PER_SLICE="${DCN_DEVICES_PER_SLICE:-8}"
 export DCN_ARTIFACT_ROOT="${DCN_ARTIFACT_ROOT:-/tmp/dcn-artifacts}"
 if [ -z "${DCN_COORDINATOR_ADDRESS:-}" ]; then
   : "${DCN_COORDINATOR_HOST:?DCN_COORDINATOR_ADDRESS or DCN_COORDINATOR_HOST must be set}"

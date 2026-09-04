@@ -1,0 +1,77 @@
+# Two neper pods, one pinned to each v6e node pool, each holding both DRANET
+# NICs (eth1 / eth2). Raw TCP only - no JAX, no MegaScale - so the result is the
+# transport ceiling the collectives are measured against.
+#
+# __CLAIM__ selects which ResourceClaimTemplate to use:
+#   2-netdev        identical to what the JAX benchmark pods claimed (no tuning)
+#   2-netdev-tuned  the dranet doc's Big TCP + ethtool tuning
+#
+# No hostNetwork: DRANET moves the physical NIC into the Pod netns and refuses
+# to run alongside hostNetwork.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: neper-0
+  labels: {app: neper, role: client}
+spec:
+  restartPolicy: Never
+  nodeSelector:
+    cloud.google.com/gke-nodepool: v6e-mn-0
+  tolerations:
+  - {key: google.com/tpu, operator: Exists, effect: NoSchedule}
+  resourceClaims:
+  - name: netdev
+    resourceClaimTemplateName: __CLAIM__
+  initContainers:
+  - name: sysctls
+    image: busybox
+    securityContext: {privileged: true}
+    command: ["sh","-c"]
+    args:
+    - |
+      echo 5000 > /proc/sys/net/ipv4/tcp_rto_min_us
+      echo 1    > /proc/sys/net/ipv4/tcp_no_metrics_save
+      echo 0    > /proc/sys/net/ipv4/tcp_slow_start_after_idle
+      echo 131072 > /proc/sys/net/core/optmem_max
+      echo "4096 41943040 314572800" > /proc/sys/net/ipv4/tcp_rmem
+  containers:
+  - name: neper
+    image: ghcr.io/google/neper:stable
+    securityContext: {privileged: true}
+    command: ["sleep","infinity"]
+    resources:
+      claims: [{name: netdev}]
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: neper-1
+  labels: {app: neper, role: server}
+spec:
+  restartPolicy: Never
+  nodeSelector:
+    cloud.google.com/gke-nodepool: v6e-mn-1
+  tolerations:
+  - {key: google.com/tpu, operator: Exists, effect: NoSchedule}
+  resourceClaims:
+  - name: netdev
+    resourceClaimTemplateName: __CLAIM__
+  initContainers:
+  - name: sysctls
+    image: busybox
+    securityContext: {privileged: true}
+    command: ["sh","-c"]
+    args:
+    - |
+      echo 5000 > /proc/sys/net/ipv4/tcp_rto_min_us
+      echo 1    > /proc/sys/net/ipv4/tcp_no_metrics_save
+      echo 0    > /proc/sys/net/ipv4/tcp_slow_start_after_idle
+      echo 131072 > /proc/sys/net/core/optmem_max
+      echo "4096 41943040 314572800" > /proc/sys/net/ipv4/tcp_rmem
+  containers:
+  - name: neper
+    image: ghcr.io/google/neper:stable
+    securityContext: {privileged: true}
+    command: ["sleep","infinity"]
+    resources:
+      claims: [{name: netdev}]
