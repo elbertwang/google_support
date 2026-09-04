@@ -66,7 +66,10 @@ and the Pod retries forever while holding the ResourceClaim, so the node is
 stuck. We lost a production node pool to this for 21 hours.
 
 **(b) `hostNetwork: true` with no claim** — a hostNetwork Pod sees the node's
-`eth1`/`eth2` directly. Verified working, simpler, and does not need DRANET.
+`eth1`/`eth2` directly, and does not need DRANET. We confirmed the interfaces
+are present and at 200 Gbps this way, but **did not run the benchmark over this
+path**, so there are no collective numbers for it here. Everything measured in
+this document used (a).
 
 Sanity check that MegaScale actually bound to them — the interface list is
 echoed in the env dump:
@@ -178,6 +181,32 @@ Reference point: `google/dranet`'s `docs/user/gke-tpu-performance.md` publishes
 180.17 + 174.73 = 354.9 Gbps on this machine type, consistent with our 347.8.
 
 ---
+
+### Confirming the runs really were on two NICs
+
+Not an assumption. For every run quoted here, the env dump records the
+interfaces the Pod actually had, and `network_delta` records the bytes that
+actually moved:
+
+```
+eth0   speed= 10000 Mbps  up     <- pod overlay veth
+eth1   speed=200000 Mbps  up
+eth2   speed=200000 Mbps  up
+--megascale_grpc_interface_prefixes=eth1,eth2,lo
+```
+
+`all_reduce` TX split, per run:
+
+| run | eth1 | eth2 | eth1 share | eth0 | predicted vs measured |
+|---|---:|---:|---:|---:|---:|
+| a-solo | 696.3 GiB | 707.5 GiB | 49.6% | 0.2 MB | 1.00 |
+| c-ar-then-uni | 702.6 | 700.3 | 50.1% | 0.2 MB | 1.00 |
+| e-bidi-then-ar | 692.2 | 711.4 | 49.3% | 0.1 MB | 1.00 |
+| baseline-r1 | 568.1 | 634.5 | 47.2% | 0.1 MB | 1.00 |
+| baseline-r3 | 621.6 | 581.2 | 51.7% | 0.1 MB | 1.00 |
+
+47–52% split, measured total within 0.2% of
+`shard_bytes × 4 devices × dispatches`, and only control traffic on `eth0`.
 
 ## The protocol we settled on
 
