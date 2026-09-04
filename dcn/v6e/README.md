@@ -66,9 +66,11 @@ Discard the first run of each session.
 - **DRA claim** — `../k8s/dranet-claim.yaml` + `../k8s/jobset-v6e-dranet.yaml`.
   Needs a DRANET-enabled cluster. This is the path everything here was measured on.
 - **`hostNetwork: true` with no claim** — a hostNetwork Pod sees the node's
-  `eth1`/`eth2` directly. We confirmed the interfaces are visible and at
-  200 Gbps this way, but did **not** run the benchmark over it, so we have no
-  collective numbers for this path.
+  `eth1`/`eth2` directly, no DRANET needed. `../k8s/jobset-v6e-hostnet.yaml`.
+
+Interleaved A/B says the two are **equivalent**: DRANET 191.4 ± 14.9 vs
+hostNetwork 191.6 ± 6.7 Gbps, +0.1% apart, both splitting ~50/50 across the
+NICs. Pick whichever fits your cluster (`results/netpath/`).
 
 Combining the two fails hard and non-obviously:
 
@@ -114,6 +116,7 @@ scripts/                    order-matrix.sh, optsweep.sh, nicbw.sh + manifests
 results/ordermatrix/        finding #2, 6 cases
 results/optsweep/           flag sweep, read SUMMARY.txt first
 results/nicbw/              raw TCP ceiling, both directions
+results/netpath/            DRANET vs hostNetwork A/B
 results/metrics-*.jsonl     1-NIC vs 2-NIC
 ```
 
@@ -127,4 +130,3 @@ Larger artifacts (full HLO dumps, xprof traces, ~1 GB) are public, no auth:
   clean protocol. The HLO finding is unaffected — that lowering is static.
 - The mechanism behind #2 is not identified.
 - Only DP=2 was measured.
-- No collective numbers for the `hostNetwork` path.

@@ -65,11 +65,21 @@ NRI RunPodSandbox failed: using host network can not claim host devices
 and the Pod retries forever while holding the ResourceClaim, so the node is
 stuck. We lost a production node pool to this for 21 hours.
 
-**(b) `hostNetwork: true` with no claim** — a hostNetwork Pod sees the node's
-`eth1`/`eth2` directly, and does not need DRANET. We confirmed the interfaces
-are present and at 200 Gbps this way, but **did not run the benchmark over this
-path**, so there are no collective numbers for it here. Everything measured in
-this document used (a).
+**(b) `hostNetwork: true` with no claim** — a hostNetwork Pod shares the node's
+netns and so sees `eth1`/`eth2` directly. Does not need DRANET.
+See `k8s/jobset-v6e-hostnet.yaml`.
+
+The two paths perform identically. Interleaved A/B on the same hardware,
+`all_reduce` alone, warmups 200, dim 32768, first run discarded:
+
+| | r1 | r2 | r3 | mean | sd |
+|---|---:|---:|---:|---:|---:|
+| DRANET claim | 197.3 | 174.5 | 202.5 | **191.4** | 14.9 |
+| `hostNetwork` | 192.7 | 184.4 | 197.8 | **191.6** | 6.7 |
+
++0.1% apart, against per-path sd of 14.9 and 6.7. Both spread traffic across
+both NICs (eth1 share 47.7–51.8%) with byte accounting at 1.00. Pick whichever
+fits your cluster. Data in `results/netpath/`, script `scripts/netpath-ab.sh`.
 
 Sanity check that MegaScale actually bound to them — the interface list is
 echoed in the env dump:

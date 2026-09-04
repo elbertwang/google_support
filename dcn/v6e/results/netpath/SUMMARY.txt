@@ -1,0 +1,19 @@
+DRANET vs hostNetwork, same hardware, interleaved
+all_reduce alone / warmups=200 / dim 32768 / 2 NIC / best-of-10, first run discarded
+
+                r1      r2      r3      mean    sd
+dranet       197.3   174.5   202.5     191.4  14.9
+hostnet      192.7   184.4   197.8     191.6   6.7
+
+delta = +0.2 Gbps (+0.1%), 而 dranet 自身 sd=14.9, hostnet sd=6.7
+
+每次运行的双网卡分流 / 字节对账：
+run          eth1 GiB eth2 GiB  eth1%     实测/理论
+dranet-r1         588      616  48.8%      1.00
+dranet-r2         574      628  47.7%      1.00
+dranet-r3         601      602  50.0%      1.00
+hostnet-r1        618      586  51.3%      1.00
+hostnet-r2        591      613  49.1%      1.00
+hostnet-r3        623      580  51.8%      1.00
+
+结论：两条路线在噪声内等价，都真实用上了两块网卡。
