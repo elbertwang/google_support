@@ -64,7 +64,8 @@ Discard the first run of each session.
 ## Two ways to get the NICs in — pick one, never both
 
 - **DRA claim** — `../k8s/dranet-claim.yaml` + `../k8s/jobset-v6e-dranet.yaml`.
-  Needs a DRANET-enabled cluster. This is the path everything here was measured on.
+  Needs a DRANET-enabled cluster. Everything else in this directory was
+  measured on this path.
 - **`hostNetwork: true` with no claim** — a hostNetwork Pod sees the node's
   `eth1`/`eth2` directly, no DRANET needed. `../k8s/jobset-v6e-hostnet.yaml`.
 
@@ -99,7 +100,7 @@ All backward compatible — defaults unchanged.
 | `dcn/k8s/entrypoint.sh` | `DCN_DEVICES_PER_SLICE=8` → env-overridable (v6e needs 4) |
 | `dcn/run_slice.sh` | `--participants-per-slice` env-overridable, exposes `--participant-scan`, adds `DCN_PROFILE=1` |
 | `dcn/distributed_runner.py` | `jax.profiler.trace` when `DCN_PROFILE=1` — `--profile-dir` is parsed but never used and nothing calls `jax.profiler`, so the package produced no trace at all |
-| `dcn/k8s/dranet-claim.yaml`, `dcn/k8s/jobset-v6e-dranet.yaml` | new |
+| `dcn/k8s/dranet-claim.yaml`, `dcn/k8s/jobset-v6e-dranet.yaml`, `dcn/k8s/jobset-v6e-hostnet.yaml` | new |
 
 Two other rough edges we hit but did not change:
 
@@ -112,7 +113,7 @@ Two other rough edges we hit but did not change:
 
 ```
 METHODOLOGY.md              full write-up
-scripts/                    order-matrix.sh, optsweep.sh, nicbw.sh + manifests
+scripts/                    order-matrix.sh, optsweep.sh, nicbw.sh, netpath-ab.sh + manifests
 results/ordermatrix/        finding #2, 6 cases
 results/optsweep/           flag sweep, read SUMMARY.txt first
 results/nicbw/              raw TCP ceiling, both directions
