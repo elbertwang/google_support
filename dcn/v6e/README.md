@@ -87,9 +87,10 @@ occupied. We lost a production node pool to this for 21 hours.
 
 ## Configuration levers: there are none
 
-35 MegaScale runtime flags and 4 configurations from the public XLA flags doc,
-across two rounds — the second aimed specifically at the receive path after
-xprof narrowed it there. All under the clean protocol. Noise floor first (baseline ×6: mean 192.1,
+46 MegaScale runtime flag configurations across three rounds and two platforms
+(v6e generic, v6e receive-path-targeted after xprof narrowed it there, then the
+best candidates repeated on tpu7x), plus 4 configurations from the public XLA
+flags doc. All under the clean protocol. Noise floor first (baseline ×6: mean 192.1,
 sd 11.1); every result fell inside the 2σ band, and the single-shot leaders
 collapsed to parity when re-run 3× interleaved (198.3 and 198.9 against a
 baseline of 198.0). The XLA-flag configs produced a **byte-identical** optimized

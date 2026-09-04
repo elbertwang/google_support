@@ -386,8 +386,33 @@ Baseline has the highest mean and the tightest spread. Worth calling out one
 negative: the quantization flags (e5m2, which should halve the bytes on the
 wire) changed nothing, so they do not engage on this path either.
 
-**Running total: 35 MegaScale runtime flags plus 4 XLA-doc configurations. None
-produced an effect distinguishable from run-to-run noise.**
+### Round 3: repeated on tpu7x
+
+The two rounds above ran on v6e. Repeated the 12 most plausible candidates on
+two 2x2x1 tpu7x slices under the same clean protocol (every run verifying
+`--megascale_grpc_interface_prefixes=eth1,eth2,lo` in its own log):
+
+    168.8  grpc_use_chaotic_good        160.4  dedicated evmgr + h2d + d2h
+    167.0  eigen_threads_per_device=64  159.4  enable_async_host_commands
+    164.3  ag_local_reduction_for_ar    159.1  premap 8Gi + tpu_premapping
+    163.9  baseline                     157.0  chunk_size=64Mi
+    162.0  use_dedicated_d2h_evmgr      156.6  ring_threshold=0
+                                        153.2  preactivate_graphs
+                                        152.5  target_dma_size=64Mi
+
+Only `grpc_use_chaotic_good` cleared +2%. Interleaved 3x:
+
+| | r1 | r2 | r3 | mean | sd |
+|---|---:|---:|---:|---:|---:|
+| baseline | 168.8 | 155.7 | 163.1 | 162.5 | 6.6 |
+| `grpc_use_chaotic_good` | 165.4 | 173.7 | 155.6 | 164.9 | 9.1 |
+
++1.5%, inside the noise.
+
+**Running total: 46 MegaScale runtime flag configurations across two platforms,
+plus 4 XLA-doc configurations. None produced an effect distinguishable from
+run-to-run noise, and the 4 XLA configurations left the optimized HLO
+byte-identical.**
 
 ### The same ratio on tpu7x
 
