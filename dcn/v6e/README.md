@@ -7,6 +7,12 @@ SHA256 still matches the value pinned in `dcn/README.md`.
 **Read [`METHODOLOGY.md`](METHODOLOGY.md) for the full write-up.** This file is
 the short version.
 
+> **If you only read one thing: [`MANUAL-AR.md`](MANUAL-AR.md).** At DP=2,
+> replacing `jax.lax.psum(x, "dcn")` with
+> `x + jax.lax.ppermute(x, "dcn", perm=[(0,1),(1,0)])` — mathematically the same
+> thing, same bytes on the wire, verified same result — is **+15% on v6e and
+> +66% on tpu7x**. No flags, no compiler change.
+
 ## The number
 
 `all_reduce`, dim 32768 (1 GiB/device), two 200 Gbps NICs:
@@ -84,6 +90,21 @@ NRI RunPodSandbox failed: using host network can not claim host devices
 
 The Pod then retries forever while holding the ResourceClaim, so the node stays
 occupied. We lost a production node pool to this for 21 hours.
+
+## What actually works
+
+Nothing in the configuration space. What does work is asking XLA for a different
+graph: at DP=2, `x + ppermute(x, [(0,1),(1,0)])` instead of `psum`.
+
+| | `psum` | `exchange_add` | gain |
+|---|---:|---:|---:|
+| v6e | 193.9 ± 3.3 | 223.3 ± 8.5 | **+15.2%** |
+| tpu7x | 163.1 ± 2.7 | 271.3 ± 15.9 | **+66.4%** |
+
+Three rounds each with the variant order rotated. On tpu7x the gap is ~40 sigma.
+Manually chunking `psum` buys almost nothing (+1–3%), so the deficit is the fused
+`ALL_REDUCE` host transfer itself, not message size. DP=2 only — see
+[`MANUAL-AR.md`](MANUAL-AR.md) for scope and caveats.
 
 ## Configuration levers: there are none
 

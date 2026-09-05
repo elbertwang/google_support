@@ -1,0 +1,133 @@
+# Same as jobset-v6e-dranet.yaml, but:
+#   - 15 timed reps instead of 5 (the 5-rep run had >50% spread on bidi/all_gather)
+#   - the container parks after the benchmark so the XLA HLO dump under
+#     $DCN_ARTIFACT_ROOT/rank-N/compiler/hlo can be pulled out with `kubectl cp`.
+#
+# Why not upload from the Pod: these nodes carry the default GKE scopes
+# (devstorage.read_only) and the cluster has no Workload Identity, so in-Pod
+# `gcloud storage cp` cannot write. Recreating the pools just to widen scopes
+# would cost the two scarce v6e slices, so the copy happens from outside.
+apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  name: dcn-manual-ar
+  namespace: default
+  annotations:
+    alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool
+spec:
+  coordinator:
+    replicatedJob: slice
+    jobIndex: 0
+    podIndex: 0
+  failurePolicy:
+    maxRestarts: 0
+  replicatedJobs:
+  - name: slice
+    replicas: 2
+    template:
+      spec:
+        parallelism: 1
+        completions: 1
+        completionMode: Indexed
+        backoffLimit: 0
+        template:
+          spec:
+            restartPolicy: Never
+            nodeSelector:
+              cloud.google.com/gke-tpu-accelerator: tpu-v6e-slice
+              cloud.google.com/gke-tpu-topology: 2x2
+            affinity:
+              nodeAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  nodeSelectorTerms:
+                  - matchExpressions:
+                    - key: cloud.google.com/gke-nodepool
+                      operator: In
+                      values: [v6e-mn-0, v6e-mn-1]
+            tolerations:
+            - key: google.com/tpu
+              operator: Exists
+              effect: NoSchedule
+            resourceClaims:
+            - name: netdev
+              resourceClaimTemplateName: 2-netdev
+            containers:
+            - name: benchmark
+              image: __IMAGE__
+              imagePullPolicy: Always
+              securityContext:
+                privileged: true
+              command: ["bash", "-c"]
+              args:
+              - |
+                /workspace/google_support/dcn/k8s/entrypoint.sh
+                rc=$?
+                echo "BENCH_EXIT=$rc"
+                du -sh "${DCN_ARTIFACT_ROOT:-/tmp/dcn-artifacts}"/rank-*/compiler/hlo 2>/dev/null || true
+                touch "${DCN_ARTIFACT_ROOT:-/tmp/dcn-artifacts}/DONE"
+                echo "PARKED_FOR_ARTIFACT_COPY"
+                sleep 7200
+              env:
+              - name: JOBSET_JOB_INDEX
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.labels['jobset.sigs.k8s.io/job-index']
+              - name: DCN_COORDINATOR_HOST
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.labels['jobset.sigs.k8s.io/coordinator']
+              - name: DCN_INTERFACES
+                value: "eth1,eth2,lo"
+              - name: DCN_DEVICES_PER_SLICE
+                value: "4"
+              - name: DCN_PARTICIPANTS
+                value: "4"
+              - name: DCN_BENCHMARK_PATH
+                value: "/bench/manual_ar.py"
+              - name: DCN_SOURCE_BENCHMARK
+                value: "/workspace/google_support/dcn/benchmark.py"
+              - name: MA_DIMS
+                value: "__DIMS__"
+              - name: MA_VARIANTS
+                value: "__VARIANTS__"
+              - name: MA_WARMUPS
+                value: "200"
+              - name: MA_REPS
+                value: "10"
+              - name: MA_BATCH
+                value: "10"
+              - name: DCN_DIMS
+                value: "__DIMS__"
+              - name: DCN_VARIANTS
+                value: "__VARIANTS__"
+              - name: DCN_BATCH
+                value: "10"
+              - name: DCN_WARMUPS
+                value: "5"
+              - name: DCN_REPS
+                value: "15"
+              - name: LIBTPU_INIT_ARGS
+                value: "__EXTRA_LIBTPU__"
+              - name: DCN_RUN_ID
+                value: "v6e-dranet-2nic-hlo-20260826"
+              resources:
+                claims:
+                - name: netdev
+                requests:
+                  google.com/tpu: "4"
+                  ephemeral-storage: 40Gi
+                limits:
+                  google.com/tpu: "4"
+              ports:
+              - {name: jax-coordinator, containerPort: 1234}
+              - {name: megascale, containerPort: 8081}
+              - {name: tpu-runtime, containerPort: 8471}
+              volumeMounts:
+              - {mountPath: /dev/shm, name: dshm}
+              - {mountPath: /bench, name: bench}
+            volumes:
+            - name: bench
+              configMap: {name: manual-ar}
+            - name: dshm
+              emptyDir:
+                medium: Memory
