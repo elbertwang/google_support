@@ -201,11 +201,14 @@ def verify(mesh, participants):
     Reduce to a replicated scalar before pulling it to the host: in a
     multi-controller job a rank cannot device_get another rank's shards.
     """
-    dim = 512
+    # must divide by n twice: once for the dcn sharding, once for the ring's
+    # chunk split. 512 is not divisible by 10.
+    n = len(mesh.devices)
+    dim = 16 * n * n
     rep = jax.sharding.NamedSharding(mesh, P())
     host = np.zeros((dim, dim), dtype=np.float32)
-    rows = dim // len(mesh.devices)
-    for i in range(len(mesh.devices)):
+    rows = dim // n
+    for i in range(n):
         host[i * rows:(i + 1) * rows, :] = i + 1
     x = jax.device_put(host, jax.sharding.NamedSharding(mesh, P("dcn", None)))
 

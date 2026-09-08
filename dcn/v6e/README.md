@@ -103,6 +103,19 @@ graph: at DP=2, `x + ppermute(x, [(0,1),(1,0)])` instead of `psum`.
 | tpu7x, DP=2 | 163.1 ± 2.7 | 271.3 ± 15.9 (`exchange_add`) | **+66.4%** |
 | tpu7x, DP=4 | 118.3 ± 0.7 | 188.9 ± 11.4 (`ring_ar`) | **+59.7%** |
 
+Scaling out (tpu7x, dim 32000, n dynamic 2x2x1 slices):
+
+| DP | devices | `psum` | `ring_ar` | gain |
+|---:|---:|---:|---:|---:|
+| 2 | 16 | 169.1 | 285.6 | +68.8% |
+| 4 | 32 | 113.8 | 183.8 | +61.5% |
+| 8 | 64 | 95.1 ± 1.8 | 131.2 ± 10.0 | +37.9% |
+| 10 | 80 | 82.0 ± 1.4 | 124.3 ± 6.1 | +51.6% |
+
+The ring wins at every scale tested, 38–69%. The gain is not monotonic and with
+1–3 runs per point the DP=8 vs DP=10 ordering is not separated.
+`results/tpu7x/DP-SCALING.md`.
+
 Three rounds each with the variant order rotated. At DP=4 `psum` reproduces to
 sd 0.7, so that gap is roughly 100 sigma. Manually chunking `psum` buys almost
 nothing (+1–3%), so the deficit is the fused `ALL_REDUCE` host transfer itself,
@@ -184,4 +197,4 @@ Larger artifacts (full HLO dumps, xprof traces, ~1 GB) are public, no auth:
 - The mechanism behind #2 is not identified, though xprof narrows it to the
   receive path: poisoning leaves `send-done` untouched and multiplies
   `recv-done` by 2.3x and `barrier-cores` by 11.5x.
-- DP=2 and DP=4 measured; DP>=8 not.
+- DP 2, 4, 8, 10 measured; beyond that not.
