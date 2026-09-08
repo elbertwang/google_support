@@ -106,9 +106,22 @@ Manually chunking `psum` buys almost nothing (+1–3%), so the deficit is the fu
 `ALL_REDUCE` host transfer itself, not message size. DP=2 only — see
 [`MANUAL-AR.md`](MANUAL-AR.md) for scope and caveats.
 
+### gRPC-over-TCP tuning specifically
+
+Proposed as a short-term mitigation: `grpc_num_channels=16`,
+`grpc_enable_numa_aware_transmit`, `grpc_use_event_engine_allocator`,
+`grpc_enable_memcpy_eliding`. Measured individually and together on tpu7x
+against both `psum` and `exchange_add`. Individually, `num_channels=16` and
+`use_event_engine_allocator` *hurt* `exchange_add`. All four together, 3x
+interleaved: +3.6% on psum (sd 7.3) and +2.9% on exchange_add (sd 16.2) — noise.
+
+The premise does not hold anyway: the same gRPC/TCP transport, same hosts, same
+process, same bytes, carries 167.6 Gbps as `psum` and 268.9 as `exchange_add`.
+The transport is not the limit. `results/tpu7x/GRPC-TUNING.md`.
+
 ## Configuration levers: there are none
 
-46 MegaScale runtime flag configurations across three rounds and two platforms
+52 MegaScale runtime flag configurations across four rounds and two platforms
 (v6e generic, v6e receive-path-targeted after xprof narrowed it there, then the
 best candidates repeated on tpu7x), plus 4 configurations from the public XLA
 flags doc. All under the clean protocol. Noise floor first (baseline ×6: mean 192.1,
