@@ -11,7 +11,7 @@ set -uo pipefail
 
 NS=default
 HERE="$(cd "$(dirname "$0")" && pwd)"
-OUT="$HERE/tpu7x/numaflags"
+OUT="$HERE/tpu7x/chanflags"
 export KUBECONFIG=~/.kube/gke-tpu-train-us-central1-1-prod.config
 
 tok() { export CLOUDSDK_AUTH_ACCESS_TOKEN=$(gcloud auth application-default print-access-token); }
@@ -19,10 +19,9 @@ say() { echo "[$(date +%T)] $*"; }
 
 CASES=(
 "baseline|"
-"txnuma0|--megascale_transport_numa_node=0"
-"txnuma1|--megascale_transport_numa_node=1"
-"txnuma0-local|--megascale_transport_numa_node=0 --megascale_grpc_use_process_numa_local_interfaces_only=true"
-"numa-full|--megascale_transport_numa_node=0 --megascale_use_numa_aware_threadpool=true --megascale_use_numa_aware_block_allocator=true --megascale_grpc_use_numa_aware_event_engine=true"
+"chan32|--megascale_grpc_num_channels=32"
+"chan64|--megascale_grpc_num_channels=64"
+"chan32rpcs|--megascale_grpc_num_channels=32 --megascale_grpc_dynamic_lb_min_outstanding_rpcs=128"
 )
 
 mkdir -p "$OUT"
@@ -30,7 +29,7 @@ WANT="${ONLY:-}"
 for entry in "${CASES[@]}"; do
   NAME="${entry%%|*}"; FLAGS="${entry#*|}"
   if [ -n "$WANT" ]; then case " $WANT " in *" $NAME "*) ;; *) continue;; esac; fi
-  JS="dcn-nf-$NAME"
+  JS="dcn-ch-$NAME"
   say "===== $NAME   ${FLAGS:-<none>}"
   tok
   kubectl delete jobset "$JS" -n $NS --ignore-not-found --wait=true >/dev/null 2>&1
