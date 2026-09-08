@@ -194,9 +194,27 @@ results/metrics-*.jsonl     1-NIC vs 2-NIC
 Larger artifacts (full HLO dumps, xprof traces, ~1 GB) are public, no auth:
 `https://storage.googleapis.com/yppublic/v6e-dcn-allreduce-20260826/`
 
+## Important caveat on the tpu7x numbers
+
+`tpu7x-standard-4t` is **dual-socket**: 2 chips + `eth1` on NUMA 0, 2 chips +
+`eth2` on NUMA 1 (verified from PCI `numa_node`, see
+`results/tpu7x/NUMA.md`). Every tpu7x figure here was measured with one
+container requesting `google.com/tpu: 4`, so a single process drove all 8 JAX
+devices and half its device-to-NIC paths crossed the UPI link.
+
+GKE supports splitting a slice into two containers of `google.com/tpu: 2`, one
+per NUMA node — and in fact *requires* that shape if you want less than a full
+slice (`must be exactly 4 TPUs (full utilization)`). Internal data reports a
+large gap between the two layouts. Our tpu7x results have not been re-measured
+that way.
+
+v6e is unaffected: `ct6e-standard-4t` is single-socket.
+
 ## Known gaps
 
 - The mechanism behind #2 is not identified, though xprof narrows it to the
   receive path: poisoning leaves `send-done` untouched and multiplies
   `recv-done` by 2.3x and `barrier-cores` by 11.5x.
 - DP 2, 4, 8, 10 measured; beyond that not.
+- All tpu7x runs are single-process-per-host; the 1-proc-per-NUMA layout is not
+  measured. `results/tpu7x/NUMA.md`.
