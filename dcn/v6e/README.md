@@ -204,9 +204,20 @@ devices and half its device-to-NIC paths crossed the UPI link.
 
 GKE supports splitting a slice into two containers of `google.com/tpu: 2`, one
 per NUMA node — and in fact *requires* that shape if you want less than a full
-slice (`must be exactly 4 TPUs (full utilization)`). Internal data reports a
-large gap between the two layouts. Our tpu7x results have not been re-measured
-that way.
+slice (`must be exactly 4 TPUs (full utilization)`). Internal data reports a large gap between the two layouts, so we checked
+whether it applies here. Two cheap experiments say it does not:
+
+- Plain TCP crossing UPI costs nothing measurable — 6 configurations of
+  taskset-pinned neper over a local vs remote NIC all land at 189.5–189.9 Gbps.
+- `megascale_transport_numa_node` in our single-process layout is a *restriction*,
+  not an optimisation: it confines the transport to one node's NIC and drops
+  `exchange_add` from 300.6 to ~179 Gbps (one NIC's line rate). `psum` moves
+  +3–6%, inside its noise.
+
+And `psum` at 158–168 Gbps is *below* one NIC's 190, so NIC or cross-socket
+bandwidth cannot be what limits it. The 1-proc-per-NUMA rebuild is therefore not
+justified by our evidence. What remains untested is the TPU-to-host-memory DMA
+path specifically.
 
 v6e is unaffected: `ct6e-standard-4t` is single-socket.
 
@@ -216,5 +227,7 @@ v6e is unaffected: `ct6e-standard-4t` is single-socket.
   receive path: poisoning leaves `send-done` untouched and multiplies
   `recv-done` by 2.3x and `barrier-cores` by 11.5x.
 - DP 2, 4, 8, 10 measured; beyond that not.
-- All tpu7x runs are single-process-per-host; the 1-proc-per-NUMA layout is not
-  measured. `results/tpu7x/NUMA.md`.
+- All tpu7x runs are single-process-per-host. The 1-proc-per-NUMA layout is not
+  measured, but two cheap experiments argue it would not help here —
+  `results/tpu7x/NUMA.md`. The TPU-to-remote-socket-memory DMA path specifically
+  is still unmeasured.

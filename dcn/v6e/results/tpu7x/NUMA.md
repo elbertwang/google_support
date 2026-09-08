@@ -106,3 +106,74 @@ If the NUMA split lifts the floor, two of our conclusions need re-checking:
   those two shapes need not respond to NUMA locality the same way
 
 Everything measured on v6e is unaffected: `ct6e-standard-4t` has a single socket.
+
+---
+
+# Small-step validation: the NUMA theory does not explain our numbers
+
+Before building a 1-proc-per-NUMA harness (~1.5h), two cheap experiments.
+
+## Step 1: does crossing UPI cost bandwidth at all? No.
+
+Plain TCP, no TPU involved. neper `-rw`, 16 threads, 32 flows, 20 s, CPU pinned
+with `taskset` to one socket's cores, talking over one NIC. `taskset` pins CPU
+only, so first-touch puts the buffers on that socket and the remote-NIC cases
+genuinely make the NIC DMA across UPI.
+
+| | CPU | NIC | relationship | Gbps |
+|---|---|---|---|---:|
+| A | NUMA 0 (`0-55,112-167`) | eth1 | local | 189.9 |
+| B | NUMA 0 | eth2 | **crosses UPI** | 189.8 |
+| C | NUMA 1 (`56-111,168-223`) | eth2 | local | 189.7 |
+| D | NUMA 1 | eth1 | **crosses UPI** | 189.9 |
+| E | unpinned | eth1 | — | 189.5 |
+| F | unpinned | eth2 | — | 189.6 |
+
+Identical to within 0.2%. On this box the UPI link has ample headroom for
+190 Gbps, so **NUMA locality is not a bandwidth constraint on the host network
+path**.
+
+## Step 2: what does `megascale_transport_numa_node` actually do here?
+
+Never covered by the earlier four flag rounds. tpu7x, DP=2, dim 32000, both
+`psum` and `exchange_add` in the same process:
+
+| config | `psum` | `exchange_add` |
+|---|---:|---:|
+| baseline, no NUMA pinning | 158.2 | **300.6** |
+| `transport_numa_node=0` | 163.6 | 179.2 |
+| `transport_numa_node=1` | 162.5 | 178.2 |
+| `=0` + `grpc_use_process_numa_local_interfaces_only` | 167.5 | 180.0 |
+| `=0` + numa threadpool + block allocator + event engine | 165.2 | 179.5 |
+
+Every pinned configuration lands `exchange_add` at 178–180 Gbps, which is one
+NIC's line rate. That is the flag working as designed: it confines the transport
+to one NUMA node, hence to that node's single NIC. **For a single process that
+spans both NUMA nodes, this flag is a restriction, not an optimisation** — it
+costs 40% of the transport throughput.
+
+`psum` moves +3 to +6% and is flat across all four pinned variants. Baseline
+`psum` ranges 155–176 across our runs, so that is inside the noise.
+
+## What this settles
+
+1. **`psum` is below single-NIC line rate.** 158–168 Gbps against 190 for one
+   NIC. Its bottleneck cannot be NIC bandwidth, cross-socket bandwidth, or NUMA
+   placement — there is no contention to relieve.
+2. **Our single process already drives both NICs well.** `exchange_add` reaches
+   300.6 Gbps, 79% of the 379.2 raw-TCP ceiling and 58% above one NIC. Whatever
+   limited the internally-reported single-process case to ~128 Gbps is not what
+   limits us.
+3. **The 2.8x headroom the internal bug reports is therefore not available
+   here**, so the 1-proc-per-NUMA rebuild is not justified by our evidence.
+
+The premise about the hardware is correct — tpu7x really is dual-socket with one
+NIC per node, verified above. It just does not turn out to be what constrains
+DCN all-reduce on this cluster.
+
+## What is still untested
+
+The TPU-to-host-memory DMA path specifically. Both experiments above exercise
+CPU-driven networking (neper) or the full MegaScale stack in one layout; neither
+isolates whether a TPU chip DMAing into remote-socket memory is slower. Ruling
+that in or out still needs the two-container build.

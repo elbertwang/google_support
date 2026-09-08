@@ -1,0 +1,123 @@
+VERSION=1.1.0
+mark=0
+no_cork=0
+async_connect=0
+enable_tcp_maerts=0
+split_bidir=0
+enable_write=1
+enable_read=1
+rx_zerocopy=0
+skip_rx_copy=1
+buffer_size=16384
+delay=0
+throughput_opt=Mb
+zerocopy=1
+reuseaddr=0
+edge_trigger=0
+test_length=20
+congestion_control=
+no_delay=0
+tcp_tx_delay=0
+tcp_fastopen=0
+num_ports=1
+wait_start=0
+iostat_ms=0
+time_wait=0
+all_samples=
+port=38339
+control_port=52279
+host=10.240.48.26
+local_hosts=
+max_pacing_rate=0
+interval=1.000000
+freebind=0
+nonblocking=0
+nolog=0
+logtostderr=1
+pin_cpu=0
+dry_run=0
+debug=0
+client=1
+ipv6=0
+ipv4=0
+stime_use_proc=0
+source_port=-1
+suicide_length=50
+listen_backlog=128
+num_clients=1
+num_threads=16
+num_flows=32
+maxevents=1000
+magic=42
+total_run_time=20
+I0908 09:09:39.674161  52    165 control_plane.c:178] ctrl_connect: +++ CLI --> SER   CLI_HELLO -T 16 -F 32 -l 20 -m 0
+I0908 09:09:39.674185  52    165 control_plane.c:65] recv_msg: --- CLI <-- SER   SER_ACK (2)
+I0908 09:09:39.674419  52    165 control_plane.c:187] ctrl_connect: +++ CLI <-- SER   SER_ACK -T 16 -F 32 -l 35 -m 0
+I0908 09:09:39.674423  52    165 control_plane.c:356] control_plane_start: connected to control port
+I0908 09:09:39.706145  52    165 thread.c:499] start_worker_threads: worker threads are ready
+I0908 09:09:39.706156  52    165 thread.c:621] run_main_thread: started worker threads
+I0908 09:09:39.706156  52    168 thread.c:326] thread_time_start: Setting time_start in thread 2
+I0908 09:09:59.706296  52    165 control_plane.c:442] control_plane_wait_until_done: finished sleep
+I0908 09:09:59.706353  52    165 thread.c:515] stop_worker_threads: told thread 0 to stop
+I0908 09:09:59.706358  52    165 thread.c:515] stop_worker_threads: told thread 1 to stop
+I0908 09:09:59.706363  52    165 thread.c:515] stop_worker_threads: told thread 2 to stop
+I0908 09:09:59.706366  52    165 thread.c:515] stop_worker_threads: told thread 3 to stop
+I0908 09:09:59.706369  52    165 thread.c:515] stop_worker_threads: told thread 4 to stop
+I0908 09:09:59.706373  52    165 thread.c:515] stop_worker_threads: told thread 5 to stop
+I0908 09:09:59.706377  52    165 thread.c:515] stop_worker_threads: told thread 6 to stop
+I0908 09:09:59.706381  52    165 thread.c:515] stop_worker_threads: told thread 7 to stop
+I0908 09:09:59.706384  52    165 thread.c:515] stop_worker_threads: told thread 8 to stop
+I0908 09:09:59.706387  52    165 thread.c:515] stop_worker_threads: told thread 9 to stop
+I0908 09:09:59.706390  52    165 thread.c:515] stop_worker_threads: told thread 10 to stop
+I0908 09:09:59.706394  52    165 thread.c:515] stop_worker_threads: told thread 11 to stop
+I0908 09:09:59.706397  52    165 thread.c:515] stop_worker_threads: told thread 12 to stop
+I0908 09:09:59.706400  52    165 thread.c:515] stop_worker_threads: told thread 13 to stop
+I0908 09:09:59.706404  52    165 thread.c:515] stop_worker_threads: told thread 14 to stop
+I0908 09:09:59.706408  52    165 thread.c:515] stop_worker_threads: told thread 15 to stop
+I0908 09:09:59.706726  52    165 thread.c:524] stop_worker_threads: joined thread 0
+I0908 09:09:59.706730  52    165 thread.c:524] stop_worker_threads: joined thread 1
+I0908 09:09:59.706733  52    165 thread.c:524] stop_worker_threads: joined thread 2
+I0908 09:09:59.706735  52    165 thread.c:524] stop_worker_threads: joined thread 3
+I0908 09:09:59.706766  52    165 thread.c:524] stop_worker_threads: joined thread 4
+I0908 09:09:59.706791  52    165 thread.c:524] stop_worker_threads: joined thread 5
+I0908 09:09:59.706801  52    165 thread.c:524] stop_worker_threads: joined thread 6
+I0908 09:09:59.706811  52    165 thread.c:524] stop_worker_threads: joined thread 7
+I0908 09:09:59.706820  52    165 thread.c:524] stop_worker_threads: joined thread 8
+I0908 09:09:59.706828  52    165 thread.c:524] stop_worker_threads: joined thread 9
+I0908 09:09:59.706838  52    165 thread.c:524] stop_worker_threads: joined thread 10
+I0908 09:09:59.706846  52    165 thread.c:524] stop_worker_threads: joined thread 11
+I0908 09:09:59.706853  52    165 thread.c:524] stop_worker_threads: joined thread 12
+I0908 09:09:59.706860  52    165 thread.c:524] stop_worker_threads: joined thread 13
+I0908 09:09:59.706882  52    165 thread.c:524] stop_worker_threads: joined thread 14
+I0908 09:09:59.706890  52    165 thread.c:524] stop_worker_threads: joined thread 15
+I0908 09:09:59.706892  52    165 thread.c:530] stop_worker_threads: reschedule=0
+I0908 09:09:59.706893  52    165 thread.c:531] stop_worker_threads: delay=0
+I0908 09:09:59.706903  52    165 thread.c:532] stop_worker_threads: sleep=0
+I0908 09:09:59.706911  52    165 thread.c:632] run_main_thread: stopped worker threads
+invalid_secret_count=0
+time_start=439549.578883681
+utime_start=0.002356
+utime_end=12.004434
+stime_start=0.004712
+stime_end=127.968227
+maxrss_start=1808
+maxrss_end=1808
+minflt_start=295
+minflt_end=295
+majflt_start=0
+majflt_end=0
+nvcsw_start=174
+nvcsw_end=9158132
+nivcsw_start=0
+nivcsw_end=1823
+num_samples=665
+time_end=439569.579280783
+correlation_coefficient=1.00
+throughput=189572.60
+throughput_units=Mbit/s
+I0908 09:09:59.707023  73    165 control_plane.c:317] ctrl_notify_server: +++ CLI --> SER   CLI_DONE rate 189572597754
+I0908 09:09:59.707050  73    165 control_plane.c:483] control_plane_stop: notified server to exit
+I0908 09:09:59.707053  73    165 control_plane.c:65] recv_msg: --- CLI <-- SER   CLI_BYE (4)
+I0908 09:09:59.707959  73    165 control_plane.c:486] control_plane_stop: +++ CLI <-- SER   SER_BYE rate 189114670371
+local_throughput=189572597754
+remote_throughput=189114670371
