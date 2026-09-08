@@ -7,11 +7,12 @@ SHA256 still matches the value pinned in `dcn/README.md`.
 **Read [`METHODOLOGY.md`](METHODOLOGY.md) for the full write-up.** This file is
 the short version.
 
-> **If you only read one thing: [`MANUAL-AR.md`](MANUAL-AR.md).** At DP=2,
-> replacing `jax.lax.psum(x, "dcn")` with
-> `x + jax.lax.ppermute(x, "dcn", perm=[(0,1),(1,0)])` — mathematically the same
-> thing, same bytes on the wire, verified same result — is **+15% on v6e and
-> +66% on tpu7x**. No flags, no compiler change.
+> **If you only read one thing: [`MANUAL-AR.md`](MANUAL-AR.md).** Writing the
+> all-reduce by hand out of `ppermute` instead of calling `jax.lax.psum` is
+> **+15~66% at DP=2 and +60% at DP=4**, same bytes on the wire, checksum-verified
+> same result. No flags, no compiler change. Two traps: the naive DP=2 form does
+> not extend past two participants (it moves 2x the bytes at n=4 and loses 18%),
+> and `psum_scatter` + `all_gather` is *worse* than `psum` at both scales.
 
 ## The number
 
@@ -96,15 +97,20 @@ occupied. We lost a production node pool to this for 21 hours.
 Nothing in the configuration space. What does work is asking XLA for a different
 graph: at DP=2, `x + ppermute(x, [(0,1),(1,0)])` instead of `psum`.
 
-| | `psum` | `exchange_add` | gain |
+| | `psum` | hand-written | gain |
 |---|---:|---:|---:|
-| v6e | 193.9 ± 3.3 | 223.3 ± 8.5 | **+15.2%** |
-| tpu7x | 163.1 ± 2.7 | 271.3 ± 15.9 | **+66.4%** |
+| v6e, DP=2 | 193.9 ± 3.3 | 223.3 ± 8.5 (`exchange_add`) | **+15.2%** |
+| tpu7x, DP=2 | 163.1 ± 2.7 | 271.3 ± 15.9 (`exchange_add`) | **+66.4%** |
+| tpu7x, DP=4 | 118.3 ± 0.7 | 188.9 ± 11.4 (`ring_ar`) | **+59.7%** |
 
-Three rounds each with the variant order rotated. On tpu7x the gap is ~40 sigma.
-Manually chunking `psum` buys almost nothing (+1–3%), so the deficit is the fused
-`ALL_REDUCE` host transfer itself, not message size. DP=2 only — see
-[`MANUAL-AR.md`](MANUAL-AR.md) for scope and caveats.
+Three rounds each with the variant order rotated. At DP=4 `psum` reproduces to
+sd 0.7, so that gap is roughly 100 sigma. Manually chunking `psum` buys almost
+nothing (+1–3%), so the deficit is the fused `ALL_REDUCE` host transfer itself,
+not message size.
+
+Past DP=2 you need a real ring: the naive form moves 2x the bytes at n=4 and
+loses 18%, and `psum_scatter` + `all_gather` is worse than `psum` at both scales.
+See [`MANUAL-AR.md`](MANUAL-AR.md) for the full table and caveats.
 
 ### gRPC-over-TCP tuning specifically
 
@@ -178,4 +184,4 @@ Larger artifacts (full HLO dumps, xprof traces, ~1 GB) are public, no auth:
 - The mechanism behind #2 is not identified, though xprof narrows it to the
   receive path: poisoning leaves `send-done` untouched and multiplies
   `recv-done` by 2.3x and `barrier-cores` by 11.5x.
-- Only DP=2 was measured.
+- DP=2 and DP=4 measured; DP>=8 not.

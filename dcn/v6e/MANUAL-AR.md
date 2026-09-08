@@ -1,4 +1,4 @@
-# A hand-written all-reduce beats the fused one by 15% on v6e and 66% on tpu7x
+# A hand-written all-reduce beats the fused one: +15~66% at DP=2, +60% at DP=4
 
 ## The idea
 
@@ -60,15 +60,63 @@ send/recv with the SUM folded in and no `add` instruction, xprof shows 82% of a
 clean `psum` sitting in `recv-done`, and a participant scan is flat in host terms
 so one chip pair already saturates the path.
 
-## Scope and caveats
+## Does it generalise past DP=2? Yes, but not the naive way
 
-- **DP=2 only.** The identity `psum == x + ppermute([(0,1),(1,0)])` holds for two
-  participants. For n>2 the equivalent is reduce-scatter + all-gather
-  (`jax.lax.psum_scatter` + `all_gather`); not tested, and it may not win.
+The identity `psum == x + ppermute([(0,1),(1,0)])` is specific to n=2. Extending
+it naively — receive from each of the n-1 peers and add — costs `(n-1)*S` per
+rank, while a ring costs `2(n-1)/n*S`. They coincide only at n=2; at n=4 the
+naive form moves twice the bytes.
+
+Measured four formulations. All checksum-verified against `psum`.
+
+### DP=2, v6e
+
+| variant | Gbps | vs `psum` | TX |
+|---|---:|---:|---:|
+| `psum` | 201.2 | — | 1203 GiB |
+| `exchange_add` | 236.8 | +17.7% | 1203 |
+| `ring_ar` (hand-written ring) | 221.1 | +9.9% | 1203 |
+| `direct_add` | 236.0 | +17.3% | 1203 |
+| `rs_ag` (`psum_scatter` + `all_gather`) | **158.8** | **−21.1%** | 1203 |
+
+At n=2 the naive form and the ring move identical bytes, and the naive one wins
+slightly because the ring adds orchestration for no benefit.
+
+### DP=4, tpu7x — 4 x 2x2x1 dynamic slices, 32 devices
+
+Three rounds, variant order rotated:
+
+| variant | r1 | r2 | r3 | mean | sd | vs `psum` | TX |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| `psum` | 117.5 | 118.7 | 118.8 | **118.3** | **0.7** | — | 1206 GiB |
+| **`ring_ar`** | 180.8 | 202.0 | 183.9 | **188.9** | 11.4 | **+59.7%** | 1205 |
+| `rs_ag` | 112.4 | 108.4 | 111.7 | 110.9 | 2.1 | −6.3% | 1206 |
+| `direct_add` | 97.1 | | | 97.1 | | −17.9% | **2411** |
+
+`psum` reproduces to sd 0.7, so the +70.6 Gbps gap is about 100 sigma.
+
+Three things fall out:
+
+1. **The rewrite generalises — use a ring.** `ring_ar` is +59.7% at DP=4 and
+   +9.9% at DP=2, both bytes-optimal.
+2. **The naive extension is a trap.** `direct_add` moves exactly 2x the bytes at
+   n=4 (2411 vs 1205 GiB, matching 3S vs 1.5S) and loses 17.9%.
+3. **`psum_scatter` + `all_gather` is also a trap** — −21% at DP=2 and −6% at
+   DP=4. Those two fused MegaScale collectives have the same problem the fused
+   all-reduce does; swapping one fused op for two does not help.
+
+Note also that the fused `psum` degrades with scale — 163-168 Gbps at DP=2 down
+to 118.3 at DP=4 — while `ring_ar` holds much better.
+
+## Remaining caveats
 - Numerics differ in association order from whatever the fused path does
-  internally. Our checksum test passes at DP=2 but a real model should be
+  internally. Checksums pass at DP=2 and DP=4, but a real model should be
   validated.
-- The v6e gain (+15%) is much smaller than the tpu7x gain (+66%).
+- The v6e gain is much smaller than the tpu7x gain.
+- DP=8 and above not measured. The ring cost model says it should hold, but that
+  is a prediction, not a measurement.
+- `ring_ar` is a straightforward textbook ring inside `shard_map`; it has not
+  been tuned, overlapped with compute, or checked against a real training step.
 
 ## Reproduce
 

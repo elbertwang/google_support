@@ -100,12 +100,98 @@ def make_chunked_exchange_add(mesh, nchunks):
     return op
 
 
+
+# ---------------------------------------------------------------------------
+# General n. The DP=2 identity does not extend: sending a full copy to each of
+# the n-1 peers costs (n-1)*S per rank, while a ring costs 2(n-1)/n*S. They
+# coincide only at n=2.
+# ---------------------------------------------------------------------------
+
+def make_direct_add(mesh, n):
+    """Naive: receive from every peer and add. (n-1)*S per rank, so it should
+    lose at n>2 on bytes alone. Included as the bytes-suboptimal reference."""
+    spec = P("dcn", None)
+
+    @jax.jit
+    def op(x):
+        def body(v):
+            acc = v
+            for k in range(1, n):
+                acc = acc + jax.lax.ppermute(
+                    v, "dcn", perm=[(i, (i + k) % n) for i in range(n)]
+                )
+            return acc
+
+        return smap(body, mesh, spec, spec)(x)
+
+    return op
+
+
+def make_ring_ar(mesh, n):
+    """Hand-written ring: reduce-scatter then all-gather, ppermute only.
+    2(n-1)/n*S per rank, the same bytes the fused all-reduce nominally moves."""
+    spec = P("dcn", None)
+    fwd = [(i, (i + 1) % n) for i in range(n)]
+
+    @jax.jit
+    def op(x):
+        def body(v):
+            rows, cols = v.shape
+            c = v.reshape(n, rows // n, cols)
+            idx = jax.lax.axis_index("dcn")
+
+            # reduce-scatter: after n-1 steps rank idx owns the complete sum of
+            # chunk (idx+1) % n
+            for k in range(n - 1):
+                si = (idx - k) % n
+                send = jax.lax.dynamic_index_in_dim(c, si, axis=0, keepdims=False)
+                recv = jax.lax.ppermute(send, "dcn", perm=fwd)
+                ri = (idx - k - 1) % n
+                cur = jax.lax.dynamic_index_in_dim(c, ri, axis=0, keepdims=False)
+                c = jax.lax.dynamic_update_index_in_dim(c, cur + recv, ri, axis=0)
+
+            # all-gather: circulate the owned chunks back around
+            for k in range(n - 1):
+                si = (idx + 1 - k) % n
+                send = jax.lax.dynamic_index_in_dim(c, si, axis=0, keepdims=False)
+                recv = jax.lax.ppermute(send, "dcn", perm=fwd)
+                ri = (idx - k) % n
+                c = jax.lax.dynamic_update_index_in_dim(c, recv, ri, axis=0)
+
+            return c.reshape(rows, cols)
+
+        return smap(body, mesh, spec, spec)(x)
+
+    return op
+
+
+def make_rs_ag(mesh, n):
+    """psum_scatter + all_gather. Two fused MegaScale ops, but neither is the
+    ALL_REDUCE one."""
+    spec = P("dcn", None)
+
+    @jax.jit
+    def op(x):
+        def body(v):
+            r = jax.lax.psum_scatter(v, "dcn", scatter_dimension=0, tiled=True)
+            return jax.lax.all_gather(r, "dcn", axis=0, tiled=True)
+
+        return smap(body, mesh, spec, spec)(x)
+
+    return op
+
+
+N_SLICES = int(os.environ.get("MA_SLICES", "2"))
+
 VARIANTS = {
     "psum": lambda m: make_psum(m),
     "exchange_add": lambda m: make_exchange_add(m),
     "chunked_psum_4": lambda m: make_chunked_psum(m, 4),
     "chunked_psum_8": lambda m: make_chunked_psum(m, 8),
     "chunked_exchange_add_4": lambda m: make_chunked_exchange_add(m, 4),
+    "direct_add": lambda m: make_direct_add(m, N_SLICES),
+    "ring_ar": lambda m: make_ring_ar(m, N_SLICES),
+    "rs_ag": lambda m: make_rs_ag(m, N_SLICES),
 }
 
 
@@ -118,9 +204,9 @@ def verify(mesh, participants):
     dim = 512
     rep = jax.sharding.NamedSharding(mesh, P())
     host = np.zeros((dim, dim), dtype=np.float32)
-    rows = dim // 2
-    host[:rows, :] = 1.0
-    host[rows:, :] = 2.0
+    rows = dim // len(mesh.devices)
+    for i in range(len(mesh.devices)):
+        host[i * rows:(i + 1) * rows, :] = i + 1
     x = jax.device_put(host, jax.sharding.NamedSharding(mesh, P("dcn", None)))
 
     def checksum(fn):
@@ -130,8 +216,9 @@ def verify(mesh, participants):
         ))
 
     ref = checksum(make_psum(mesh))
-    out = {"psum_checksum": ref, "expected": 3.0}
-    for name, factory in VARIANTS.items():
+    out = {"psum_checksum": ref}
+    for name in os.environ.get("MA_VARIANTS", ",".join(VARIANTS)).split(","):
+        factory = VARIANTS[name]
         got = checksum(factory(mesh))
         ok = abs(got - ref) < 1e-3
         out[name] = ok
@@ -146,7 +233,7 @@ def main() -> None:
     warmups = int(os.environ.get("MA_WARMUPS", "200"))
     reps = int(os.environ.get("MA_REPS", "10"))
     batch = int(os.environ.get("MA_BATCH", "10"))
-    n_slices = 2
+    n_slices = N_SLICES
 
     groups = src["devices_by_slice"]()
     participants = min(len(g) for g in groups)
