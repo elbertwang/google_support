@@ -181,6 +181,45 @@ def make_rs_ag(mesh, n):
     return op
 
 
+
+def _ring_body(v, n, fwd):
+    """One unidirectional ring over `fwd`. Reduce-scatter then all-gather."""
+    rows, cols = v.shape
+    c = v.reshape(n, rows // n, cols)
+    idx = jax.lax.axis_index("dcn")
+    for k in range(n - 1):
+        send = jax.lax.dynamic_index_in_dim(c, (idx - k) % n, axis=0, keepdims=False)
+        recv = jax.lax.ppermute(send, "dcn", perm=fwd)
+        ri = (idx - k - 1) % n
+        cur = jax.lax.dynamic_index_in_dim(c, ri, axis=0, keepdims=False)
+        c = jax.lax.dynamic_update_index_in_dim(c, cur + recv, ri, axis=0)
+    for k in range(n - 1):
+        send = jax.lax.dynamic_index_in_dim(c, (idx + 1 - k) % n, axis=0, keepdims=False)
+        recv = jax.lax.ppermute(send, "dcn", perm=fwd)
+        c = jax.lax.dynamic_update_index_in_dim(c, recv, (idx - k) % n, axis=0)
+    return c.reshape(rows, cols)
+
+
+def make_ring2_ar(mesh, n):
+    """Two counter-rotating rings, half the buffer each. Same total bytes as one
+    ring; the question is whether more concurrent flows per NIC helps."""
+    spec = P("dcn", None)
+    fwd = [(i, (i + 1) % n) for i in range(n)]
+    bwd = [(i, (i - 1) % n) for i in range(n)]
+
+    @jax.jit
+    def op(x):
+        def body(v):
+            h = v.shape[0] // 2
+            a = _ring_body(v[:h], n, fwd)
+            b = _ring_body(v[h:], n, bwd)
+            return jnp.concatenate([a, b], axis=0)
+
+        return smap(body, mesh, spec, spec)(x)
+
+    return op
+
+
 N_SLICES = int(os.environ.get("MA_SLICES", "2"))
 
 VARIANTS = {
@@ -192,6 +231,7 @@ VARIANTS = {
     "direct_add": lambda m: make_direct_add(m, N_SLICES),
     "ring_ar": lambda m: make_ring_ar(m, N_SLICES),
     "rs_ag": lambda m: make_rs_ag(m, N_SLICES),
+    "ring2_ar": lambda m: make_ring2_ar(m, N_SLICES),
 }
 
 

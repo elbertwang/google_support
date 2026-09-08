@@ -4,8 +4,9 @@ We ran the `dcn/` package from this repo on **TPU v6e** (2 × `ct6e-standard-4t`
 DP=2, GKE + DRANET) instead of TPU7x. `dcn/benchmark.py` is **untouched** — its
 SHA256 still matches the value pinned in `dcn/README.md`.
 
-**Read [`METHODOLOGY.md`](METHODOLOGY.md) for the full write-up.** This file is
-the short version.
+**Read [`METHODOLOGY.md`](METHODOLOGY.md) for the full write-up**, and
+[`ALGORITHM.md`](ALGORITHM.md) for what the fused all-reduce actually emits.
+This file is the short version.
 
 > **If you only read one thing: [`MANUAL-AR.md`](MANUAL-AR.md).** Writing the
 > all-reduce by hand out of `ppermute` instead of calling `jax.lax.psum` is
@@ -184,6 +185,7 @@ results/optsweep/           flag sweep, read SUMMARY.txt first
 results/nicbw/              raw TCP ceiling, both directions
 results/netpath/            DRANET vs hostNetwork A/B
 results/xprof/              clean vs poisoned trace logs (traces in the bucket)
+results/hlo-dp4/            psum vs ring HLO at DP=4, the basis for ALGORITHM.md
 results/optsweep2/          round-2 flag sweep, receive-path targeted
 results/tpu7x/              cross-platform check on two 2x2x1 tpu7x slices
 results/metrics-*.jsonl     1-NIC vs 2-NIC

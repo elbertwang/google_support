@@ -1,0 +1,103 @@
+DCN_HOSTNETWORK_PREFLIGHT_BEGIN
+host=gke-tpu-66ce10fa-b6md pod_ip=10.240.0.43 node_ip=10.240.0.43
+tcp_rmem=4096	41943040	314572800
+lo               UNKNOWN        127.0.0.1/8 169.254.169.252/32 ::1/128 
+eth0             UP             10.240.0.43/32 metric 1024 fe80::4001:aff:fef0:2b/64 
+eth1             UP             10.240.96.18/32 metric 1024 fe80::4001:aff:fef0:6012/64 
+eth2             UP             10.240.48.18/32 metric 1024 fe80::4001:aff:fef0:3012/64 
+docker0          DOWN           169.254.123.1/24 
+lxc5a3c202ff753@if6 UP             169.254.4.6/32 fe80::d0aa:c7ff:feeb:44dc/64 
+cilium_net@cilium_host UP             fe80::94ae:6bff:fe29:798d/64 
+cilium_host@cilium_net UP             169.254.4.6/32 fe80::5c4b:a9ff:fec6:8184/64 
+lxc84eaafe7e966@if14 UP             169.254.4.6/32 fe80::5434:6aff:fe00:842b/64 
+lxc82dfdc53d1ba@if160 UP             169.254.4.6/32 fe80::6819:72ff:feca:ba43/64 
+lxc1b1134b6333d@if162 UP             169.254.4.6/32 fe80::dc06:3eff:fe2e:c413/64 
+lxca4e61a09d027@if174 UP             169.254.4.6/32 fe80::48c8:8dff:fe7d:9070/64 
+default via 10.240.0.1 dev eth0 proto dhcp src 10.240.0.43 metric 1024 quickack 1 
+default via 10.240.0.1 dev eth0 proto dhcp src 10.240.0.43 metric 1024 
+10.228.11.3 dev lxc5a3c202ff753 proto kernel scope link 
+10.228.11.5 dev lxc84eaafe7e966 proto kernel scope link 
+10.228.11.78 dev lxc82dfdc53d1ba proto kernel scope link 
+10.228.11.79 dev lxc1b1134b6333d proto kernel scope link 
+10.228.11.85 dev lxca4e61a09d027 proto kernel scope link 
+10.240.0.0/20 via 10.240.0.1 dev eth0 proto dhcp src 10.240.0.43 metric 1024 quickack 1 
+10.240.0.0/20 via 10.240.0.1 dev eth0 proto dhcp src 10.240.0.43 metric 1024 
+10.240.0.1 dev eth0 proto dhcp scope link src 10.240.0.43 metric 1024 quickack 1 
+10.240.0.1 dev eth0 proto dhcp scope link src 10.240.0.43 metric 1024 
+10.240.48.0/20 via 10.240.48.1 dev eth2 proto dhcp src 10.240.48.18 metric 1024 quickack 1 
+10.240.48.0/20 via 10.240.48.1 dev eth2 proto dhcp src 10.240.48.18 metric 1024 
+10.240.48.1 dev eth2 proto dhcp scope link src 10.240.48.18 metric 1024 quickack 1 
+10.240.48.1 dev eth2 proto dhcp scope link src 10.240.48.18 metric 1024 
+10.240.96.0/20 via 10.240.96.1 dev eth1 proto dhcp src 10.240.96.18 metric 1024 quickack 1 
+10.240.96.0/20 via 10.240.96.1 dev eth1 proto dhcp src 10.240.96.18 metric 1024 
+10.240.96.1 dev eth1 proto dhcp scope link src 10.240.96.18 metric 1024 quickack 1 
+10.240.96.1 dev eth1 proto dhcp scope link src 10.240.96.18 metric 1024 
+169.254.123.0/24 dev docker0 proto kernel scope link src 169.254.123.1 linkdown 
+169.254.169.254 via 10.240.0.1 dev eth0 proto dhcp src 10.240.0.43 metric 1024 quickack 1 
+169.254.169.254 via 10.240.0.1 dev eth0 proto dhcp src 10.240.0.43 metric 1024 
+interface=eth0 speed_mbps=200000
+interface=eth1 speed_mbps=200000
+interface=eth2 speed_mbps=200000
+interface=lo speed_mbps=
+DCN_HOSTNETWORK_PREFLIGHT_END
+Looking in links: https://storage.googleapis.com/jax-releases/libtpu_releases.html
+Collecting jax==0.11.0 (from jax[tpu]==0.11.0)
+  Downloading jax-0.11.0-py3-none-any.whl.metadata (13 kB)
+Collecting libtpu==0.0.44
+  Downloading libtpu-0.0.44-cp312-cp312-manylinux_2_31_x86_64.whl.metadata (1.5 kB)
+Collecting jaxlib<=0.11.0,>=0.11.0 (from jax==0.11.0->jax[tpu]==0.11.0)
+  Downloading jaxlib-0.11.0-cp312-cp312-manylinux_2_27_x86_64.whl.metadata (1.3 kB)
+Collecting ml_dtypes>=0.5.0 (from jax==0.11.0->jax[tpu]==0.11.0)
+  Downloading ml_dtypes-0.6.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (8.8 kB)
+Collecting numpy>=2.1 (from jax==0.11.0->jax[tpu]==0.11.0)
+  Downloading numpy-2.5.3-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (6.6 kB)
+Collecting opt_einsum (from jax==0.11.0->jax[tpu]==0.11.0)
+  Downloading opt_einsum-3.4.0-py3-none-any.whl.metadata (6.3 kB)
+Collecting scipy>=1.15 (from jax==0.11.0->jax[tpu]==0.11.0)
+  Downloading scipy-1.18.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (62 kB)
+Collecting requests (from jax[tpu]==0.11.0)
+  Downloading requests-2.34.2-py3-none-any.whl.metadata (4.8 kB)
+Collecting charset_normalizer<4,>=2 (from requests->jax[tpu]==0.11.0)
+  Downloading charset_normalizer-3.5.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (45 kB)
+Collecting idna<4,>=2.5 (from requests->jax[tpu]==0.11.0)
+  Downloading idna-3.19-py3-none-any.whl.metadata (9.2 kB)
+Collecting urllib3<3,>=1.26 (from requests->jax[tpu]==0.11.0)
+  Downloading urllib3-2.7.0-py3-none-any.whl.metadata (6.9 kB)
+Collecting certifi>=2023.5.7 (from requests->jax[tpu]==0.11.0)
+  Downloading certifi-2026.7.22-py3-none-any.whl.metadata (2.5 kB)
+Downloading jax-0.11.0-py3-none-any.whl (3.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.3/3.3 MB 42.5 MB/s eta 0:00:00
+Downloading libtpu-0.0.44-cp312-cp312-manylinux_2_31_x86_64.whl (215.6 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 215.6/215.6 MB 252.8 MB/s eta 0:00:00
+Downloading jaxlib-0.11.0-cp312-cp312-manylinux_2_27_x86_64.whl (87.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 87.3/87.3 MB 260.1 MB/s eta 0:00:00
+Downloading ml_dtypes-0.6.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (409 kB)
+Downloading numpy-2.5.3-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (16.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.7/16.7 MB 274.2 MB/s eta 0:00:00
+Downloading scipy-1.18.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (35.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 35.3/35.3 MB 268.3 MB/s eta 0:00:00
+Downloading opt_einsum-3.4.0-py3-none-any.whl (71 kB)
+Downloading requests-2.34.2-py3-none-any.whl (73 kB)
+Downloading certifi-2026.7.22-py3-none-any.whl (136 kB)
+Downloading charset_normalizer-3.5.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (248 kB)
+Downloading idna-3.19-py3-none-any.whl (68 kB)
+Downloading urllib3-2.7.0-py3-none-any.whl (131 kB)
+Installing collected packages: urllib3, opt_einsum, numpy, libtpu, idna, charset_normalizer, certifi, scipy, requests, ml_dtypes, jaxlib, jax
+Successfully installed certifi-2026.7.22 charset_normalizer-3.5.1 idna-3.19 jax-0.11.0 jaxlib-0.11.0 libtpu-0.0.44 ml_dtypes-0.6.0 numpy-2.5.3 opt_einsum-3.4.0 requests-2.34.2 scipy-1.18.1 urllib3-2.7.0
+
+[notice] A new release of pip is available: 25.0.1 -> 26.2.1
+[notice] To update, run: python3.12 -m pip install --upgrade pip
+ab32f8deaf1cdd171ebdb13a1922e8665a02cc67
+DCN_VERSION_CHECK {'jax': '0.11.0', 'jaxlib': '0.11.0', 'libtpu': '0.0.44'}
+ERROR: Accessing retired flag 'eventmanager2_as_default_eventmanager'
+/tmp/dcn-venv/lib/python3.12/site-packages/jax/_src/xla_bridge.py:224: UserWarning: TPU backend initialization is taking more than 60.0 seconds. Did you run your code on all TPU hosts? See https://docs.jax.dev/en/latest/multi_process.html for more information.
+  warnings.warn(
+DCN_MULTISLICE_PREFLIGHT {"global_device_count": 32, "local_device_count": 8, "process_count": 4, "process_id": 0, "slice_counts": {"0": 8, "1": 8, "2": 8, "3": 8}}
+MANUAL_AR_VERIFY {"psum": true, "psum_checksum": 10.0, "ring2_ar": true, "ring_ar": true}
+MANUAL_AR_RESULT {"batch": 10, "benchmark": "manual_ar", "host_gbps_best": 110.42699053381695, "host_gbps_median": 107.52392100734765, "matrix_dim": 32000, "network_delta": {"cilium_host": {"rx_bytes": 0, "tx_bytes": 0}, "cilium_net": {"rx_bytes": 0, "tx_bytes": 0}, "docker0": {"rx_bytes": 0, "tx_bytes": 0}, "eth0": {"rx_bytes": 644770, "tx_bytes": 4597713}, "eth1": {"rx_bytes": 617438161930, "tx_bytes": 615720099254}, "eth2": {"rx_bytes": 622147979811, "tx_bytes": 619540809742}, "lo": {"rx_bytes": 3934108, "tx_bytes": 3934108}, "lxc1b1134b6333d": {"rx_bytes": 2131973, "tx_bytes": 674640}, "lxc5a3c202ff753": {"rx_bytes": 20145, "tx_bytes": 110768}, "lxc82dfdc53d1ba": {"rx_bytes": 27786, "tx_bytes": 5632}, "lxc84eaafe7e966": {"rx_bytes": 279, "tx_bytes": 464}, "lxca4e61a09d027": {"rx_bytes": 9809, "tx_bytes": 1713}}, "participants_per_slice": 8, "reps": 10, "shard_bytes_per_device": 512000000.0, "time_ms_all": [303.73880700208247, 303.33331169676967, 308.2058286992833, 308.1758937041741, 304.23215340124443, 301.34146419586614, 305.2995252015535, 296.7390475969296, 306.3700704020448, 305.26942900032736], "time_ms_best": 296.7390475969296, "time_ms_median": 304.7507912007859, "variant": "psum", "warmups": 100}
+MANUAL_AR_RESULT {"batch": 10, "benchmark": "manual_ar", "host_gbps_best": 183.48639192874157, "host_gbps_median": 179.22431191217564, "matrix_dim": 32000, "network_delta": {"cilium_host": {"rx_bytes": 0, "tx_bytes": 0}, "cilium_net": {"rx_bytes": 0, "tx_bytes": 0}, "docker0": {"rx_bytes": 0, "tx_bytes": 0}, "eth0": {"rx_bytes": 239706, "tx_bytes": 2808155}, "eth1": {"rx_bytes": 619454057725, "tx_bytes": 614585383781}, "eth2": {"rx_bytes": 619433750643, "tx_bytes": 620452928311}, "lo": {"rx_bytes": 4200090, "tx_bytes": 4200090}, "lxc1b1134b6333d": {"rx_bytes": 1051502, "tx_bytes": 356071}, "lxc5a3c202ff753": {"rx_bytes": 12280, "tx_bytes": 3358}, "lxc82dfdc53d1ba": {"rx_bytes": 25814, "tx_bytes": 3676}, "lxc84eaafe7e966": {"rx_bytes": 492, "tx_bytes": 545}, "lxca4e61a09d027": {"rx_bytes": 9324, "tx_bytes": 1301}}, "participants_per_slice": 8, "reps": 10, "shard_bytes_per_device": 512000000.0, "time_ms_all": [181.6567451984156, 184.07348879845813, 190.05582070094533, 182.59043250000104, 178.58545070048422, 184.96992660220712, 181.90812399843708, 182.96163430204615, 182.70304199540988, 185.10157860000618], "time_ms_best": 178.58545070048422, "time_ms_median": 182.832338148728, "variant": "ring_ar", "warmups": 100}
+MANUAL_AR_RESULT {"batch": 10, "benchmark": "manual_ar", "host_gbps_best": 185.85191055503597, "host_gbps_median": 180.51605720737302, "matrix_dim": 32000, "network_delta": {"cilium_host": {"rx_bytes": 0, "tx_bytes": 0}, "cilium_net": {"rx_bytes": 0, "tx_bytes": 0}, "docker0": {"rx_bytes": 0, "tx_bytes": 0}, "eth0": {"rx_bytes": 1158013, "tx_bytes": 1857260}, "eth1": {"rx_bytes": 619819464474, "tx_bytes": 618831390479}, "eth2": {"rx_bytes": 619393129186, "tx_bytes": 614679181331}, "lo": {"rx_bytes": 4739512, "tx_bytes": 4739512}, "lxc1b1134b6333d": {"rx_bytes": 1107692, "tx_bytes": 411343}, "lxc5a3c202ff753": {"rx_bytes": 17954, "tx_bytes": 159284}, "lxc82dfdc53d1ba": {"rx_bytes": 5619, "tx_bytes": 5090}, "lxc84eaafe7e966": {"rx_bytes": 459, "tx_bytes": 19707}, "lxca4e61a09d027": {"rx_bytes": 477, "tx_bytes": 411}}, "participants_per_slice": 8, "reps": 10, "shard_bytes_per_device": 512000000.0, "time_ms_all": [181.41956300241873, 176.6254570975434, 176.3124193996191, 184.57037199987099, 181.481700099539, 181.5663357032463, 183.8781542959623, 185.19977149553597, 184.64834470069036, 181.29262020229362], "time_ms_best": 176.3124193996191, "time_ms_median": 181.52401790139265, "variant": "ring2_ar", "warmups": 100}
+MANUAL_AR_SUMMARY {"psum@32000": 110.4, "ring2_ar@32000": 185.9, "ring_ar@32000": 183.5}
+BENCH_EXIT=0
+5.2M	/tmp/dcn-artifacts/ring2_7x/rank-0/compiler/hlo
+PARKED
