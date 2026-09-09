@@ -1,0 +1,58 @@
+HloModule jit_op, is_scheduled=true, entry_computation_layout={(bf16[16384,32768]{1,0:T(8,128)(2,1)})->bf16[16384,32768]{1,0:T(8,128)(2,1)}}, allow_spmd_sharding_propagation_to_output={true}, num_partitions=8, frontend_attributes={arg_layout_modes="default",arg_memory_spaces="0",out_layout_modes="default",out_memory_spaces="0"}
+
+FileNames
+1 "/tmp/google_support/dcn/distributed_runner.py"
+2 "<frozen runpy>"
+3 "/bench/manual_ar.py"
+4 "/tmp/google_support/dcn/benchmark.py"
+
+FunctionNames
+1 "<module>"
+2 "main"
+3 "run_path"
+4 "_run_module_code"
+5 "_run_code"
+6 "timed_batches"
+7 "make_psum.<locals>.op"
+8 "make_psum.<locals>.op.<locals>.<lambda>"
+
+FileLocations
+1 {file_name_id=1 function_name_id=1 line=60 end_line=60 column=2 end_column=2}
+2 {file_name_id=1 function_name_id=2 line=56 end_line=56 column=2 end_column=2}
+3 {file_name_id=2 function_name_id=3 line=287 end_line=287 column=15 end_column=15}
+4 {file_name_id=2 function_name_id=4 line=98 end_line=98 column=8 end_column=8}
+5 {file_name_id=2 function_name_id=5 line=88 end_line=88 column=4 end_column=4}
+6 {file_name_id=3 function_name_id=1 line=328 end_line=328 column=4 end_column=4}
+7 {file_name_id=3 function_name_id=2 line=295 end_line=295 column=22 end_column=22}
+8 {file_name_id=4 function_name_id=6 line=116 end_line=116 column=17 end_column=17}
+9 {file_name_id=3 function_name_id=7 line=48 end_line=48 column=15 end_column=15}
+10 {file_name_id=3 function_name_id=8 line=48 end_line=48 column=30 end_column=30}
+
+StackFrames
+1 {file_location_id=1 parent_frame_id=1}
+2 {file_location_id=2 parent_frame_id=2}
+3 {file_location_id=3 parent_frame_id=3}
+4 {file_location_id=4 parent_frame_id=4}
+5 {file_location_id=5 parent_frame_id=5}
+6 {file_location_id=6 parent_frame_id=6}
+7 {file_location_id=7 parent_frame_id=7}
+8 {file_location_id=8 parent_frame_id=8}
+9 {file_location_id=9 parent_frame_id=9}
+10 {file_location_id=10 parent_frame_id=1}
+11 {file_location_id=10 parent_frame_id=11}
+12 {file_location_id=10 parent_frame_id=10}
+
+
+ENTRY %main.0_spmd (param.1: bf16[16384,32768]) -> bf16[16384,32768] {
+  %param.1 = bf16[16384,32768]{1,0:T(8,128)(2,1)} parameter(0), sharding={devices=[2,1,8]<=[16] last_tile_dim_replicate}, metadata={op_name="x"}, backend_config={"flag_configs":[],"scoped_memory_configs":[{"memory_space":"1","offset":"0","size":"0"}],"used_scoped_memory_configs":[]}
+  %after-all = token[] after-all(), frontend_attributes={MegascaleRendezvousKeyName="psum.7_0"}, backend_config={"flag_configs":[],"scoped_memory_configs":[{"memory_space":"1","offset":"0","size":"0"}],"used_scoped_memory_configs":[]}
+  %bitcast = bf16[524288,8,128]{2,1,0:T(8,128)(2,1)} bitcast(%param.1), backend_config={"flag_configs":[],"scoped_memory_configs":[{"memory_space":"1","offset":"0","size":"0"}],"used_scoped_memory_configs":[]}
+  %send = (bf16[524288,8,128]{2,1,0:T(8,128)(2,1)}, u32[], token[]) send(%bitcast, %after-all), channel_id=1, is_host_transfer=true, frontend_attributes={_xla_host_transfer_handler_name="xla_megascale_runtime",_xla_host_transfer_rendezvous="psum.7_0",_xla_megascale_reduce_operation="SUM",_xla_megascale_target="{1,2}x{0:7}",_xla_megascale_transfer_type="ALL_REDUCE"}, backend_config={"aggregated_send_recv_config":{"status":"AGGREGATE_STATUS_DEFER"},"flag_configs":[],"scoped_memory_configs":[{"memory_space":"1","offset":"0","size":"2097152"}],"used_scoped_memory_configs":[]}
+  %recv = (bf16[524288,8,128]{2,1,0:T(8,128)(2,1)}, u32[], token[]) recv(%after-all), channel_id=2, is_host_transfer=true, frontend_attributes={_xla_host_transfer_handler_name="xla_megascale_runtime",_xla_host_transfer_rendezvous="psum.7_0",_xla_megascale_reduce_operation="SUM",_xla_megascale_target="{1,2}x{0:7}",_xla_megascale_transfer_type="ALL_REDUCE"}, backend_config={"aggregated_send_recv_config":{"status":"AGGREGATE_STATUS_ISSUE"},"flag_configs":[],"scoped_memory_configs":[{"memory_space":"1","offset":"0","size":"2097152"}],"used_scoped_memory_configs":[]}
+  %recv-done = (bf16[524288,8,128]{2,1,0:T(8,128)(2,1)}, token[]) recv-done(%recv), channel_id=2, is_host_transfer=true, frontend_attributes={_xla_host_transfer_handler_name="xla_megascale_runtime"}, control-predecessors={%send}, backend_config={"flag_configs":[],"scoped_memory_configs":[{"memory_space":"1","offset":"0","size":"2097152"}],"used_scoped_memory_configs":[]}
+  %bitcast.1 = bf16[16384,32768]{1,0:T(8,128)(2,1)} bitcast(%recv-done#0), backend_config={"flag_configs":[],"scoped_memory_configs":[{"memory_space":"1","offset":"0","size":"0"}],"used_scoped_memory_configs":[]}
+  %copy.3 = bf16[16384,32768]{1,0:T(8,128)(2,1)} copy(%bitcast.1), backend_config={"flag_configs":[],"scoped_memory_configs":[{"memory_space":"1","offset":"0","size":"31876711"}],"used_scoped_memory_configs":[]}
+  %send-done = token[] send-done(%send), channel_id=1, is_host_transfer=true, frontend_attributes={_xla_host_transfer_handler_name="xla_megascale_runtime"}, backend_config={"flag_configs":[],"scoped_memory_configs":[{"memory_space":"1","offset":"0","size":"2097152"}],"used_scoped_memory_configs":[]}
+  ROOT %bitcast.2 = bf16[16384,32768]{1,0:T(8,128)(2,1)} bitcast(%copy.3), backend_config={"flag_configs":[],"scoped_memory_configs":[{"memory_space":"1","offset":"0","size":"0"}],"used_scoped_memory_configs":[]}
+}
+

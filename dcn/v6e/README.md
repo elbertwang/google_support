@@ -8,12 +8,22 @@ SHA256 still matches the value pinned in `dcn/README.md`.
 [`ALGORITHM.md`](ALGORITHM.md) for what the fused all-reduce actually emits.
 This file is the short version.
 
-> **If you only read one thing: [`MANUAL-AR.md`](MANUAL-AR.md).** Writing the
-> all-reduce by hand out of `ppermute` instead of calling `jax.lax.psum` is
-> **+15~66% at DP=2 and +60% at DP=4**, same bytes on the wire, checksum-verified
-> same result. No flags, no compiler change. Two traps: the naive DP=2 form does
-> not extend past two participants (it moves 2x the bytes at n=4 and loses 18%),
-> and `psum_scatter` + `all_gather` is *worse* than `psum` at both scales.
+> **If you only read one thing: [`HOST-REDUCTION.md`](HOST-REDUCTION.md).**
+> ```bash
+> export LIBTPU_INIT_ARGS="--xla_tpu_use_megascale_host_reduction=false"
+> ```
+> **+54% on `jax.lax.psum` over DCN**, stock libtpu, no custom binary, no graph
+> change. By default the sum is folded into the host transfer and executed by CPU
+> threads in host DRAM — which is why a DCN all-reduce emits *zero* `add`
+> instructions in HLO. The flag makes XLA lower it to reduce-scatter +
+> all-gather instead, pure DMA, with the add back on TPU HBM.
+>
+> This supersedes the hand-written ring in [`MANUAL-AR.md`](MANUAL-AR.md). That
+> ring was never winning on algorithm — it is built from `ppermute`, so it was
+> bypassing host reduction. The flag gets the same thing from the compiler, so
+> the usual objection ("the DP all-reduce is GSPMD-generated, you cannot
+> hand-write it") no longer costs you anything. `MANUAL-AR.md` is still worth
+> reading for the measurements and the two traps it documents.
 
 ## The number
 
@@ -31,10 +41,12 @@ reduced result, not sending. 43% of the total is not wire time.
 
 ## The same benchmark will give you 33–200 Gbps
 
-Six things move it, in order of size. If you are seeing ~140, start at #1.
+Seven things move it, in order of size. If you are seeing ~140, start at #1;
+#0 is the largest single lever but was found last.
 
 | # | thing | effect | detail |
 |---|---|---|---|
+| 0 | `--xla_tpu_use_megascale_host_reduction=false` | **+54%** | Only affects `all_reduce`. Default lowering runs the sum on the host CPU. [`HOST-REDUCTION.md`](HOST-REDUCTION.md). |
 | 1 | Both NICs actually inside the Pod | up to **2x** | The k8s manifests in this repo set `DCN_INTERFACES=eth1,eth2,lo` but declare neither `hostNetwork` nor a `resourceClaim`, so the Pod has only `eth0`. Our 1-NIC number was 132.8 vs 198.0. |
 | 2 | `ppermute_uni` must not run before `all_reduce` | **5.4x** | Poisons every subsequent DCN collective, never recovers. `benchmark.py` defaults to running it first. |
 | 3 | `--warmup-runs` 5 → 200 | +11%, σ 33%→8% | Saturates at 200; 1000 buys nothing. |
@@ -95,8 +107,16 @@ occupied. We lost a production node pool to this for 21 hours.
 
 ## What actually works
 
-Nothing in the configuration space. What does work is asking XLA for a different
-graph: at DP=2, `x + ppermute(x, [(0,1),(1,0)])` instead of `psum`.
+> **Superseded.** This section concluded that nothing in the configuration space
+> helps and that you must rewrite the graph. Both halves turned out to be wrong,
+> for the same reason: `--xla_tpu_use_megascale_host_reduction=false` is a
+> configuration lever, and it delivers what the rewritten graph delivered,
+> because the rewritten graph was only ever bypassing host reduction.
+> [`HOST-REDUCTION.md`](HOST-REDUCTION.md). The measurements below stand; the
+> conclusion drawn from them does not.
+
+What works at the graph level: at DP=2, `x + ppermute(x, [(0,1),(1,0)])`
+instead of `psum`.
 
 | | `psum` | hand-written | gain |
 |---|---:|---:|---:|
@@ -139,7 +159,15 @@ The premise does not hold anyway: the same gRPC/TCP transport, same hosts, same
 process, same bytes, carries 167.6 Gbps as `psum` and 268.9 as `exchange_add`.
 The transport is not the limit. `results/tpu7x/GRPC-TUNING.md`.
 
-## Configuration levers: there are none
+## Configuration levers: 56 screened, and we missed the one that mattered
+
+> **Read with [`HOST-REDUCTION.md`](HOST-REDUCTION.md).** Everything below was
+> measured with host reduction on, i.e. against a system bottlenecked elsewhere,
+> so these null results say less than they appear to. Worse, one of the flags
+> screened here — `--megascale_use_top_level_all_gather_and_local_reduction_for_ar`,
+> whose name describes the mechanism that eventually worked — measured 164.3 vs
+> 163.1 and led us to discard the correct hypothesis. Black-box screening cannot
+> tell "no effect" from "dead switch".
 
 52 MegaScale runtime flag configurations across four rounds and two platforms
 (v6e generic, v6e receive-path-targeted after xprof narrowed it there, then the
