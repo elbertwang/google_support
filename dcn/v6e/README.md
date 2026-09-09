@@ -8,7 +8,7 @@ SHA256 still matches the value pinned in `dcn/README.md`.
 [`ALGORITHM.md`](ALGORITHM.md) for what the fused all-reduce actually emits.
 This file is the short version.
 
-> **If you only read one thing: [`HOST-REDUCTION.md`](HOST-REDUCTION.md).**
+> **If you only read one thing: [`HOST-REDUCTION.md`](HOST-REDUCTION.md)** (written in Chinese).
 > ```bash
 > export LIBTPU_INIT_ARGS="--xla_tpu_use_megascale_host_reduction=false"
 > ```
