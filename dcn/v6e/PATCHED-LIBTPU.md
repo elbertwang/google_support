@@ -1,5 +1,9 @@
 # 移除 `send_done → recv_done` 依赖的 patched libtpu：无效果
 
+> **本文已被 [`TUNING.md`](TUNING.md) 取代。** 该文是最终结论，包含完整数据、
+> 机制、已排除假设清单与测量方法。本文保留为调查过程记录。
+
+
 被测产物：一个基于内部快照构建的 libtpu，在 MegaScale cross-slice rewrite pass 里
 删掉了一行 ——
 

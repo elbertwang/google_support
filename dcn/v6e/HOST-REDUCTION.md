@@ -1,5 +1,9 @@
 # 融合 all-reduce 慢的原因：求和跑在 host CPU 上
 
+> **本文已被 [`TUNING.md`](TUNING.md) 取代。** 该文是最终结论，包含完整数据、
+> 机制、已排除假设清单与测量方法。本文保留为调查过程记录。
+
+
 ```bash
 export LIBTPU_INIT_ARGS="--xla_tpu_use_megascale_host_reduction=false"
 ```

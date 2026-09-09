@@ -8,22 +8,20 @@ SHA256 still matches the value pinned in `dcn/README.md`.
 [`ALGORITHM.md`](ALGORITHM.md) for what the fused all-reduce actually emits.
 This file is the short version.
 
-> **If you only read one thing: [`HOST-REDUCTION.md`](HOST-REDUCTION.md)** (written in Chinese).
+> **If you only read one thing: [`TUNING.md`](TUNING.md)** (written in Chinese).
 > ```bash
-> export LIBTPU_INIT_ARGS="--xla_tpu_use_megascale_host_reduction=false"
+> export LIBTPU_INIT_ARGS="--xla_tpu_use_megascale_host_reduction=false \
+>                          --megascale_max_reduction_shard_size=16777216"
 > ```
-> **+54% on `jax.lax.psum` over DCN**, stock libtpu, no custom binary, no graph
-> change. By default the sum is folded into the host transfer and executed by CPU
-> threads in host DRAM — which is why a DCN all-reduce emits *zero* `add`
-> instructions in HLO. The flag makes XLA lower it to reduce-scatter +
-> all-gather instead, pure DMA, with the add back on TPU HBM.
+> **`jax.lax.psum` over DCN: 162 -> 331 Gbps, +104%.** Two stock flags, no
+> graph change, no custom binary. The first turns off host-side reduction, which
+> by default folds the sum into the host transfer and runs it on CPU in host
+> DRAM. The second raises the all-reduce shard size from 8 MiB to 16 MiB.
 >
-> This supersedes the hand-written ring in [`MANUAL-AR.md`](MANUAL-AR.md). That
-> ring was never winning on algorithm — it is built from `ppermute`, so it was
-> bypassing host reduction. The flag gets the same thing from the compiler, so
-> the usual objection ("the DP all-reduce is GSPMD-generated, you cannot
-> hand-write it") no longer costs you anything. `MANUAL-AR.md` is still worth
-> reading for the measurements and the two traps it documents.
+> `TUNING.md` is the definitive writeup: measurements, mechanisms, the full list
+> of ruled-out hypotheses, and the measurement protocol. The other documents in
+> this directory are the investigation that led there and are superseded where
+> they disagree.
 
 ## The number
 
@@ -42,11 +40,11 @@ reduced result, not sending. 43% of the total is not wire time.
 ## The same benchmark will give you 33–200 Gbps
 
 Seven things move it, in order of size. If you are seeing ~140, start at #1;
-#0 is the largest single lever but was found last.
+#0 is by far the largest and was found last.
 
 | # | thing | effect | detail |
 |---|---|---|---|
-| 0 | `--xla_tpu_use_megascale_host_reduction=false` | **+54%** | Only affects `all_reduce`. Default lowering runs the sum on the host CPU. [`HOST-REDUCTION.md`](HOST-REDUCTION.md). |
+| 0 | `host_reduction=false` + `max_reduction_shard_size=16Mi` | **+104%** | Only affects `all_reduce`. See [`TUNING.md`](TUNING.md). |
 | 1 | Both NICs actually inside the Pod | up to **2x** | The k8s manifests in this repo set `DCN_INTERFACES=eth1,eth2,lo` but declare neither `hostNetwork` nor a `resourceClaim`, so the Pod has only `eth0`. Our 1-NIC number was 132.8 vs 198.0. |
 | 2 | `ppermute_uni` must not run before `all_reduce` | **5.4x** | Poisons every subsequent DCN collective, never recovers. `benchmark.py` defaults to running it first. |
 | 3 | `--warmup-runs` 5 → 200 | +11%, σ 33%→8% | Saturates at 200; 1000 buys nothing. |
